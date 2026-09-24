@@ -1,0 +1,1 @@
+- [MB Events brand assets](mb-events-brand-assets.md) — The project owner confirmed reuse rights for assets from the official site.

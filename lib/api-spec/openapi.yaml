@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: leads
+    description: Public event inquiry submissions
 paths:
   /healthz:
     get:
@@ -24,6 +26,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /leads:
+    post:
+      operationId: createLead
+      tags: [leads]
+      summary: Submit an event inquiry
+      description: Saves a public event inquiry for MB Events follow-up.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadInput"
+      responses:
+        "201":
+          description: Inquiry received
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadReceipt"
+        "400":
+          description: Invalid inquiry details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many submissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +66,106 @@ components:
           type: string
       required:
         - status
+    LeadInput:
+      type: object
+      additionalProperties: false
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          minLength: 7
+          maxLength: 32
+        eventType:
+          type: string
+          enum:
+            - Wedding
+            - Sweet 16
+            - Quinceañera
+            - Bar Mitzvah
+            - Bat Mitzvah
+            - Birthday
+            - Corporate
+            - School Event
+            - Private Party
+            - Other
+        eventDate:
+          type: ["string", "null"]
+          format: date
+        eventDateUnknown:
+          type: boolean
+        guestCount:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 5000
+        venueName:
+          type: ["string", "null"]
+          maxLength: 160
+        services:
+          type: array
+          maxItems: 12
+          items:
+            type: string
+            enum:
+              - DJ
+              - MC
+              - Lighting
+              - Dancers / Party Motivators
+              - Photo Booth
+              - Video
+              - Event Coordination
+              - Karaoke
+              - Casino Events
+              - Not sure yet
+        message:
+          type: ["string", "null"]
+          maxLength: 2000
+        source:
+          type: string
+          enum:
+            - website_builder
+            - date_check
+            - venue_finder
+      required:
+        - firstName
+        - lastName
+        - email
+        - phone
+        - eventType
+        - eventDate
+        - eventDateUnknown
+        - guestCount
+        - venueName
+        - services
+        - message
+        - source
+    LeadReceipt:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [received]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, status, createdAt]
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
 
