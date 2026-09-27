@@ -24,7 +24,7 @@ router.post("/leads", async (req, res): Promise<void> => {
   const parsed = CreateLeadBody.safeParse(req.body);
   if (!parsed.success) {
     req.log.warn(
-      { fields: parsed.error.issues.map((issue) => issue.path.join(".")) },
+      { fields: parsed.error.issues.map((issue: { path: PropertyKey[] }) => issue.path.join(".")) },
       "Invalid event inquiry",
     );
     res.status(400).json({ error: "Please check the required inquiry details." });
