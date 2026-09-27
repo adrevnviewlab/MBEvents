@@ -1,10 +1,15 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true,
+    "noEmit": false,
+    "noEmitOnError": false,
     "incremental": false,
+    "outDir": "dist-tsc",
     "rootDir": "src",
-    "types": ["node"]
+    "types": ["node"],
+    "disableReferencedProjectLoad": true,
+    "disableSourceOfProjectReferenceRedirect": true,
+    "disableSolutionSearching": true
   },
   "include": ["src"]
 }
