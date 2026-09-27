@@ -1,0 +1,296 @@
+import { createContext, useContext, useState, type ReactNode } from 'react';
+import { Link, useLocation } from 'wouter';
+import { CalendarDays, Menu, Pin, X } from 'lucide-react';
+import { A, brand, type EventTypeValue, type ExperienceId, type LeadSource } from '@/lib/content';
+import { BuildMyEventWizard, CheckMyDateModal, FindVenueModal } from '@/components/site/funnels';
+
+type BuilderState = {
+  source: LeadSource;
+  selectedType?: EventTypeValue;
+  experienceId?: ExperienceId;
+  serviceIds?: string[];
+  venueName?: string;
+  eventDate?: string;
+  eventDateUnknown?: boolean;
+  note?: string;
+} | null;
+
+type SiteFunnels = {
+  openBuilder: (opts?: {
+    source?: LeadSource;
+    selectedType?: EventTypeValue;
+    experienceId?: ExperienceId;
+    serviceIds?: string[];
+    venueName?: string;
+    eventDate?: string;
+    eventDateUnknown?: boolean;
+    note?: string;
+  }) => void;
+  openDate: () => void;
+  openVenue: () => void;
+};
+
+const FunnelsContext = createContext<SiteFunnels | null>(null);
+
+export function useSiteFunnels() {
+  const ctx = useContext(FunnelsContext);
+  if (!ctx) throw new Error('useSiteFunnels must be used within SiteShell');
+  return ctx;
+}
+
+const navLinks = [
+  { href: '/weddings', label: 'Weddings' },
+  { href: '/experiences', label: 'Experiences' },
+  { href: '/services', label: 'Services' },
+  { href: '/gallery', label: 'Gallery' },
+  { href: '/venues', label: 'Venues' },
+  { href: '/contact', label: 'Contact' },
+];
+
+const platformLinks = [
+  { href: '/plan/jessica', label: 'Planner' },
+  { href: '/e/jessica16', label: 'Sample invite' },
+  { href: '/partners', label: 'Partners' },
+  { href: '/stories/rob-krista', label: 'Real story' },
+];
+
+export function SiteHeader({
+  onBuild,
+  onDate,
+  onVenue,
+  solid = false,
+}: {
+  onBuild: () => void;
+  onDate: () => void;
+  onVenue: () => void;
+  solid?: boolean;
+}) {
+  const [menu, setMenu] = useState(false);
+  const [location] = useLocation();
+
+  return (
+    <header className={`${solid ? 'relative border-b border-[var(--mb-line)] bg-[var(--mb-ink)]' : 'absolute inset-x-0 top-0'} z-30`}>
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
+        <Link data-testid="link-home-logo" href="/" className="flex items-center">
+          <img src={`${A}mb-events-logo.png`} alt={brand.name} className="h-10 w-auto object-contain sm:h-12" />
+        </Link>
+        <nav className="hidden items-center gap-6 xl:flex">
+          {navLinks.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              data-testid={`link-nav-${l.label.toLowerCase()}`}
+              className={`text-[10px] font-extrabold uppercase tracking-[.18em] transition-colors hover:text-[var(--mb-champagne)] ${
+                location === l.href || location.startsWith(l.href + '/')
+                  ? 'text-[var(--mb-champagne)]'
+                  : 'text-[var(--mb-ivory-soft)]'
+              }`}
+            >
+              {l.label}
+            </Link>
+          ))}
+          <button
+            data-testid="button-header-date"
+            onClick={onDate}
+            className="border border-[var(--mb-ivory)]/45 px-4 py-2.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-[var(--mb-ivory)] transition-colors hover:border-[var(--mb-champagne)] hover:text-[var(--mb-champagne)]"
+          >
+            Check my date
+          </button>
+          <button
+            data-testid="button-header-build"
+            onClick={onBuild}
+            className="bg-[var(--mb-champagne)] px-4 py-2.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-[var(--mb-ink)] transition-colors hover:bg-[var(--mb-ivory)]"
+          >
+            Build my event
+          </button>
+        </nav>
+        <button data-testid="button-mobile-menu" onClick={() => setMenu(!menu)} className="text-[var(--mb-ivory)] xl:hidden" aria-label="Open menu">
+          {menu ? <X /> : <Menu />}
+        </button>
+      </div>
+      {menu && (
+        <div className="border-t border-[var(--mb-line)] bg-[var(--mb-charcoal)]/98 px-5 pb-6 pt-3 backdrop-blur-md xl:hidden">
+          {navLinks.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              data-testid={`link-mobile-${l.label.toLowerCase()}`}
+              onClick={() => setMenu(false)}
+              className="block border-b border-[var(--mb-line)] py-4 text-xs font-bold uppercase tracking-widest text-[var(--mb-ivory)]"
+            >
+              {l.label}
+            </Link>
+          ))}
+          <button data-testid="button-mobile-venue" onClick={() => { setMenu(false); onVenue(); }} className="mt-4 flex w-full items-center justify-center gap-2 border border-[var(--mb-line-strong)] py-3.5 text-xs font-bold uppercase tracking-widest text-[var(--mb-ivory)]">
+            Find a venue <Pin size={14} />
+          </button>
+          <button data-testid="button-mobile-date" onClick={() => { setMenu(false); onDate(); }} className="mt-3 w-full border border-[var(--mb-line-strong)] py-3.5 text-xs font-bold uppercase tracking-widest text-[var(--mb-ivory)]">
+            Check my date
+          </button>
+          <button data-testid="button-mobile-build" onClick={() => { setMenu(false); onBuild(); }} className="mt-3 w-full bg-[var(--mb-champagne)] py-4 text-xs font-bold uppercase tracking-widest text-[var(--mb-ink)]">
+            Build my event
+          </button>
+        </div>
+      )}
+    </header>
+  );
+}
+
+export function SiteFooter() {
+  return (
+    <footer className="bg-[var(--mb-ink)] px-5 py-12 text-[var(--mb-ivory)] sm:px-8 lg:px-12">
+      <div className="mx-auto grid max-w-7xl gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+        <div>
+          <img src={`${A}mb-events-logo.png`} alt={brand.name} className="h-12 w-auto" />
+          <p className="mt-5 max-w-xs text-sm leading-6 text-[var(--mb-muted)]">
+            Entertainment and production for the moments you’ll talk about for years.
+          </p>
+        </div>
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[.2em] text-[var(--mb-champagne)]">Explore</p>
+          <div className="mt-4 flex flex-col gap-2">
+            {[...navLinks, ...platformLinks].map((l) => (
+              <Link key={l.href} href={l.href} className="text-sm text-white/75 hover:text-[var(--mb-champagne)]">
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[.2em] text-[var(--mb-champagne)]">Say hello</p>
+          <a data-testid="link-footer-phone" href={`tel:${brand.phoneTel}`} className="mt-4 block text-sm text-white/80 hover:text-[var(--mb-champagne)]">
+            {brand.phone}
+          </a>
+          <a data-testid="link-footer-email" href={`mailto:${brand.email}`} className="mt-2 block break-all text-sm text-white/80 hover:text-[var(--mb-champagne)]">
+            {brand.email}
+          </a>
+        </div>
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[.2em] text-[var(--mb-champagne)]">Based in Wantagh</p>
+          <p className="mt-4 max-w-[220px] text-sm leading-6 text-[var(--mb-muted)]">
+            {brand.address}
+            <br />
+            {brand.city}
+          </p>
+        </div>
+      </div>
+      <div className="mx-auto mt-12 flex max-w-7xl flex-col justify-between gap-3 border-t border-[var(--mb-line)] pt-5 font-mono text-[9px] uppercase tracking-[.16em] text-white/35 sm:flex-row">
+        <span>© {new Date().getFullYear()} {brand.short}</span>
+        <span>Make a night of it.</span>
+      </div>
+    </footer>
+  );
+}
+
+export function PageHero({
+  eyebrow,
+  title,
+  subtitle,
+  image,
+  children,
+}: {
+  eyebrow: string;
+  title: ReactNode;
+  subtitle?: string;
+  image?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <section className="relative overflow-hidden bg-[var(--mb-ink)] px-5 pb-16 pt-32 text-[var(--mb-ivory)] sm:px-8 sm:pb-20 sm:pt-36 lg:px-12">
+      {image && (
+        <div className="absolute inset-0" aria-hidden>
+          <img src={image} alt="" className="h-full w-full object-cover opacity-35" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[var(--mb-ink)] via-[var(--mb-ink)]/85 to-[var(--mb-ink)]/55" />
+        </div>
+      )}
+      <div className="relative mx-auto max-w-7xl">
+        <p className="font-mono text-[10px] uppercase tracking-[.22em] text-[var(--mb-champagne)]">{eyebrow}</p>
+        <h1 className="mt-4 max-w-3xl font-display text-5xl leading-[.94] sm:text-7xl">{title}</h1>
+        {subtitle && <p className="mt-6 max-w-xl text-sm leading-7 text-[var(--mb-ivory-soft)]">{subtitle}</p>}
+        {children && <div className="mt-8">{children}</div>}
+      </div>
+    </section>
+  );
+}
+
+export function SiteShell({ children, solidHeader = false }: { children: ReactNode; solidHeader?: boolean }) {
+  const [builder, setBuilder] = useState<BuilderState>(null);
+  const [dateCheck, setDateCheck] = useState(false);
+  const [venueModal, setVenueModal] = useState(false);
+
+  const openBuilder: SiteFunnels['openBuilder'] = (opts = {}) => {
+    setDateCheck(false);
+    setVenueModal(false);
+    setBuilder({
+      source: opts.source ?? 'website_builder',
+      selectedType: opts.selectedType,
+      experienceId: opts.experienceId,
+      serviceIds: opts.serviceIds,
+      venueName: opts.venueName,
+      eventDate: opts.eventDate,
+      eventDateUnknown: opts.eventDateUnknown,
+      note: opts.note,
+    });
+  };
+  const openDate = () => {
+    setBuilder(null);
+    setVenueModal(false);
+    setDateCheck(true);
+  };
+  const openVenue = () => {
+    setBuilder(null);
+    setDateCheck(false);
+    setVenueModal(true);
+  };
+
+  return (
+    <FunnelsContext.Provider value={{ openBuilder, openDate, openVenue }}>
+      <div className="grain min-h-screen overflow-x-hidden bg-[var(--mb-ink)]">
+        <SiteHeader onBuild={() => openBuilder()} onDate={openDate} onVenue={openVenue} solid={solidHeader} />
+        <div className="pb-24 xl:pb-0">{children}</div>
+        <SiteFooter />
+        {!builder && !dateCheck && !venueModal && (
+        <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-[var(--mb-line)] bg-[var(--mb-ink)]/95 p-3 backdrop-blur-md xl:hidden" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+          <button data-testid="button-sticky-build" onClick={() => openBuilder()} className="flex-1 bg-[var(--mb-champagne)] py-3.5 text-[10px] font-extrabold uppercase tracking-[.14em] text-[var(--mb-ink)]">
+            Build my event
+          </button>
+          <button data-testid="button-sticky-date" onClick={openDate} className="flex-1 border border-[var(--mb-ivory)]/40 py-3.5 text-[10px] font-extrabold uppercase tracking-[.14em] text-[var(--mb-ivory)]">
+            Check my date
+          </button>
+        </div>
+        )}
+        {builder && (
+          <BuildMyEventWizard
+            source={builder.source}
+            selectedType={builder.selectedType}
+            experienceId={builder.experienceId}
+            initialServices={builder.serviceIds}
+            initialVenue={builder.venueName}
+            initialDate={builder.eventDate}
+            initialDateUnknown={builder.eventDateUnknown}
+            initialNote={builder.note}
+            onClose={() => setBuilder(null)}
+          />
+        )}
+        {dateCheck && (
+          <CheckMyDateModal
+            onClose={() => setDateCheck(false)}
+            onContinueBuild={({ selectedType, eventDate }) => {
+              setDateCheck(false);
+              openBuilder({ source: 'date_check', selectedType, eventDate });
+            }}
+          />
+        )}
+        {venueModal && (
+          <FindVenueModal
+            onClose={() => setVenueModal(false)}
+            onRequest={(venueName) => {
+              setVenueModal(false);
+              openBuilder({ source: 'venue_finder', venueName });
+            }}
+          />
+        )}
+      </div>
+    </FunnelsContext.Provider>
+  );
+}

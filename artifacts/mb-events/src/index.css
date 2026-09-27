@@ -37,63 +37,87 @@
 }
 
 :root {
-  --background: 39 43% 96%;
-  --foreground: 218 42% 15%;
-  --border: 35 24% 85%;
-  --input: 35 24% 80%;
-  --ring: 356 69% 45%;
-  --card: 39 43% 98%;
-  --card-foreground: 218 42% 15%;
-  --card-border: 35 24% 85%;
-  --popover: 39 43% 98%;
-  --popover-foreground: 218 42% 15%;
-  --popover-border: 35 24% 85%;
-  --primary: 218 42% 15%;
-  --primary-foreground: 39 43% 96%;
-  --secondary: 356 69% 45%;
-  --secondary-foreground: 39 43% 98%;
-  --muted: 36 25% 91%;
-  --muted-foreground: 218 17% 43%;
-  --accent: 39 71% 61%;
-  --accent-foreground: 218 42% 15%;
-  --destructive: 356 69% 45%;
-  --destructive-foreground: 39 43% 98%;
+  /* Near-black charcoal — warm undertone, not flat pure black */
+  --background: 30 8% 6%;
+  --foreground: 36 28% 92%;
+  --border: 30 6% 18%;
+  --input: 30 6% 16%;
+  --ring: 38 42% 62%;
+  --card: 30 7% 9%;
+  --card-foreground: 36 28% 92%;
+  --card-border: 30 6% 18%;
+  --popover: 30 8% 10%;
+  --popover-foreground: 36 28% 92%;
+  --popover-border: 30 6% 20%;
+  --primary: 36 28% 92%;
+  --primary-foreground: 30 8% 8%;
+  --secondary: 355 48% 48%;
+  --secondary-foreground: 36 28% 96%;
+  --muted: 30 6% 13%;
+  --muted-foreground: 32 10% 62%;
+  --accent: 38 42% 62%;
+  --accent-foreground: 30 10% 10%;
+  --destructive: 355 48% 48%;
+  --destructive-foreground: 36 28% 96%;
   --app-font-sans: 'Manrope', sans-serif;
   --app-font-serif: 'DM Serif Display', Georgia, serif;
   --app-font-mono: 'Space Mono', monospace;
   --radius: 0.35rem;
-  --shadow-soft: 0 18px 45px rgba(32, 45, 72, .10);
+  --shadow-soft: 0 22px 50px rgba(0, 0, 0, .45);
+
+  /* Brand tokens — premium dark hospitality */
+  --mb-ink: #0c0b0a;
+  --mb-charcoal: #141211;
+  --mb-surface: #1a1816;
+  --mb-elevated: #221f1c;
+  --mb-ivory: #f2ebe0;
+  --mb-ivory-soft: rgba(242, 235, 224, 0.78);
+  --mb-muted: #9a948a;
+  --mb-champagne: #c9b07a;
+  --mb-champagne-deep: #a8945e;
+  --mb-crimson: #c4454a;
+  --mb-crimson-deep: #9e3438;
+  --mb-line: rgba(242, 235, 224, 0.12);
+  --mb-line-strong: rgba(242, 235, 224, 0.22);
 }
 
 .dark {
-  --background: 218 42% 10%;
-  --foreground: 39 43% 96%;
-  --border: 218 26% 24%;
-  --input: 218 26% 28%;
-  --ring: 356 69% 57%;
-  --card: 218 36% 15%;
-  --card-foreground: 39 43% 96%;
-  --card-border: 218 26% 24%;
-  --popover: 218 36% 15%;
-  --popover-foreground: 39 43% 96%;
-  --popover-border: 218 26% 24%;
-  --primary: 39 43% 96%;
-  --primary-foreground: 218 42% 10%;
-  --secondary: 356 69% 57%;
-  --secondary-foreground: 39 43% 98%;
-  --muted: 218 26% 20%;
-  --muted-foreground: 218 15% 70%;
-  --accent: 39 71% 61%;
-  --accent-foreground: 218 42% 15%;
-  --destructive: 356 69% 57%;
-  --destructive-foreground: 218 42% 10%;
+  --background: 30 8% 6%;
+  --foreground: 36 28% 92%;
+  --border: 30 6% 18%;
+  --input: 30 6% 16%;
+  --ring: 38 42% 62%;
+  --card: 30 7% 9%;
+  --card-foreground: 36 28% 92%;
+  --card-border: 30 6% 18%;
+  --popover: 30 8% 10%;
+  --popover-foreground: 36 28% 92%;
+  --popover-border: 30 6% 20%;
+  --primary: 36 28% 92%;
+  --primary-foreground: 30 8% 8%;
+  --secondary: 355 48% 48%;
+  --secondary-foreground: 36 28% 96%;
+  --muted: 30 6% 13%;
+  --muted-foreground: 32 10% 62%;
+  --accent: 38 42% 62%;
+  --accent-foreground: 30 10% 10%;
+  --destructive: 355 48% 48%;
+  --destructive-foreground: 36 28% 96%;
 }
 
 @layer base {
   * { @apply border-border; }
   html { scroll-behavior: smooth; }
-  body { @apply font-sans antialiased bg-background text-foreground; }
-  ::selection { background: hsl(var(--accent)); color: hsl(var(--foreground)); }
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    background-image:
+      radial-gradient(ellipse 120% 80% at 10% -20%, rgba(201, 176, 122, 0.07), transparent 50%),
+      radial-gradient(ellipse 90% 60% at 100% 0%, rgba(201, 176, 122, 0.05), transparent 45%),
+      linear-gradient(180deg, #0c0b0a 0%, #12100e 50%, #0c0b0a 100%);
+    background-attachment: fixed;
+    min-height: 100%;
+  }
+  ::selection { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
 }
 
 @layer utilities {
@@ -105,18 +129,46 @@
     position: fixed;
     inset: 0;
     pointer-events: none;
-    opacity: .035;
+    opacity: .045;
     z-index: 50;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+  }
+  .mb-veil {
+    background:
+      linear-gradient(90deg, rgba(12, 11, 10, 0.92) 0%, rgba(12, 11, 10, 0.55) 45%, rgba(12, 11, 10, 0.2) 100%),
+      linear-gradient(0deg, rgba(12, 11, 10, 0.92) 0%, transparent 42%, rgba(12, 11, 10, 0.4) 100%);
   }
 }
 
 @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-7px) rotate(1deg); } }
 @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes soft-zoom { from { transform: scale(1); } to { transform: scale(1.04); } }
+@keyframes hero-cross-a {
+  0%, 42% { opacity: 1; }
+  52%, 92% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes hero-cross-b {
+  0%, 42% { opacity: 0; }
+  52%, 92% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.hero-clip-a { animation: hero-cross-a 22s ease-in-out infinite; }
+.hero-clip-b { animation: hero-cross-b 22s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-clip-a { animation: none; opacity: 1; }
+  .hero-clip-b { display: none; }
+}
+@keyframes ember-glow {
+  0%, 100% { opacity: .35; }
+  50% { opacity: .55; }
+}
 .animate-rise { animation: rise .8s both cubic-bezier(.2,.75,.2,1); }
 .animate-float { animation: float 5s ease-in-out infinite; }
-.marquee-track { animation: marquee 28s linear infinite; }
+.animate-soft-zoom { animation: soft-zoom 18s ease-in-out alternate infinite; }
+.animate-ember { animation: ember-glow 6s ease-in-out infinite; }
+.marquee-track { animation: marquee 32s linear infinite; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
