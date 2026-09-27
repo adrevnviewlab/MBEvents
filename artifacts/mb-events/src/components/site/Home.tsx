@@ -4,6 +4,7 @@ import { ArrowRight, CalendarDays, MoveRight, Pin } from 'lucide-react';
 import { A, brand, eventTypes, experiences, galleryItems, reviews, serviceCategories, venues, type EventTypeValue } from '@/lib/content';
 import { Button, SectionEyebrow } from '@/components/site/ui';
 import { SiteShell, useSiteFunnels } from '@/components/site/Layout';
+import { SpringCard } from '@/components/site/motion';
 
 function Hero() {
   const { openBuilder, openDate, openVenue } = useSiteFunnels();
@@ -92,7 +93,7 @@ function EventTypes() {
         <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {eventTypes.map((type, i) => {
             const dedicated = type.href !== '/services' && type.href !== '/contact';
-            const className = 'group relative block min-h-[260px] overflow-hidden text-left sm:min-h-[280px]';
+            const className = 'block min-h-[260px] overflow-hidden text-left sm:min-h-[280px]';
             const inner = (
               <>
               <img src={type.image} alt={type.label} className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
@@ -109,20 +110,21 @@ function EventTypes() {
             );
             if (dedicated) {
               return (
-                <Link data-testid={`card-event-${i}`} key={type.value} href={type.href} className={className}>
+                <SpringCard key={type.value} href={type.href} label={type.label} testId={`card-event-${i}`} className={className}>
                   {inner}
-                </Link>
+                </SpringCard>
               );
             }
             return (
-            <button
-              data-testid={`card-event-${i}`}
-              key={type.value}
-              onClick={() => openBuilder({ source: 'website_builder', selectedType: type.value as EventTypeValue })}
-              className={className}
-            >
-              {inner}
-            </button>
+              <SpringCard
+                key={type.value}
+                testId={`card-event-${i}`}
+                label={type.label}
+                onClick={() => openBuilder({ source: 'website_builder', selectedType: type.value as EventTypeValue })}
+                className={className}
+              >
+                {inner}
+              </SpringCard>
             );
           })}
         </div>
@@ -154,7 +156,7 @@ function Experiences() {
         </div>
         <div className="mt-14 grid gap-4 lg:grid-cols-3">
           {experiences.map((exp, i) => (
-            <article key={exp.id} className={`group relative min-h-[420px] overflow-hidden ${i === 1 ? 'lg:translate-y-8' : ''}`}>
+            <SpringCard key={exp.id} className={`min-h-[420px] overflow-hidden ${i === 1 ? 'lg:translate-y-8' : ''}`}>
               <img src={exp.image} alt={exp.title} className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-[var(--mb-ink)] via-[var(--mb-ink)]/50 to-transparent" />
               <div className="relative flex h-full flex-col justify-end p-7">
@@ -164,12 +166,12 @@ function Experiences() {
                 <button
                   data-testid={`button-experience-${exp.id}`}
                   onClick={() => openBuilder({ source: 'experience', experienceId: exp.id })}
-                  className="mt-6 inline-flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[.16em] text-[var(--mb-champagne)] hover:text-[var(--mb-ivory)]"
+                  className="relative z-30 mt-6 inline-flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[.16em] text-[var(--mb-champagne)] hover:text-[var(--mb-ivory)]"
                 >
                   Get this experience <MoveRight size={14} />
                 </button>
               </div>
-            </article>
+            </SpringCard>
           ))}
         </div>
       </div>
@@ -195,12 +197,12 @@ function ServicesPreview() {
         </div>
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {serviceCategories.map((cat, i) => (
-            <button
+            <SpringCard
               key={cat.id}
-              type="button"
-              data-testid={`card-service-${cat.id}`}
+              testId={`card-service-${cat.id}`}
+              label={cat.title}
               onClick={() => openBuilder({ source: 'service', serviceIds: [cat.id] })}
-              className="group relative min-h-[280px] overflow-hidden text-left"
+              className="min-h-[280px] overflow-hidden text-left"
             >
               <img src={cat.image} alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-[var(--mb-ink)] via-[var(--mb-ink)]/55 to-transparent" />
@@ -212,7 +214,7 @@ function ServicesPreview() {
                   {cat.items.slice(0, 4).join(' · ')}
                 </p>
               </div>
-            </button>
+            </SpringCard>
           ))}
         </div>
         <div className="mt-10">
@@ -246,9 +248,9 @@ function GalleryPreview() {
           </div>
           <p className="max-w-sm text-sm leading-7 text-[var(--mb-muted)]">Sparklers, uplighting, lasers, and dancing on the clouds — footage from actual MB celebrations.</p>
         </div>
-        <div className="mt-12 columns-1 gap-4 space-y-4 md:columns-2 lg:columns-3">
+        <div className="mt-12 columns-1 gap-4 md:columns-2 lg:columns-3">
           {preview.map((item, i) => (
-            <figure key={i} className="group break-inside-avoid overflow-hidden border border-[var(--mb-line)] bg-[var(--mb-elevated)]">
+            <SpringCard key={i} tilt={4} lift={-6} className="mb-4 break-inside-avoid overflow-hidden bg-[var(--mb-elevated)]">
               <div className={`relative overflow-hidden ${item.type === 'video' ? 'aspect-video' : i % 3 === 0 ? 'aspect-[3/4]' : 'aspect-[4/5]'}`}>
                 {item.type === 'video' ? (
                   <video data-testid={`video-gallery-${i}`} className="h-full w-full object-cover" controls preload="metadata" poster={item.poster} playsInline>
@@ -257,12 +259,12 @@ function GalleryPreview() {
                 ) : (
                   <img src={item.src} alt={item.label} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 )}
-                <div className="pointer-events-none absolute left-4 top-4 bg-[var(--mb-champagne)] px-3 py-1 font-mono text-[9px] uppercase tracking-[.16em] text-[var(--mb-ink)]">{item.label}</div>
+                <div className="pointer-events-none absolute left-4 top-4 z-10 bg-[var(--mb-champagne)] px-3 py-1 font-mono text-[9px] uppercase tracking-[.16em] text-[var(--mb-ink)]">{item.label}</div>
               </div>
               <figcaption className="px-5 py-4">
                 <span className="font-display text-2xl">{item.caption}</span>
               </figcaption>
-            </figure>
+            </SpringCard>
           ))}
         </div>
         <div className="mt-10">
@@ -324,12 +326,12 @@ function SocialRow() {
         </div>
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           {clips.map((c) => (
-            <figure key={c.src} className="overflow-hidden border border-[var(--mb-line)]">
+            <SpringCard key={c.src} tilt={4} lift={-6} className="overflow-hidden">
               <video className="aspect-[4/5] w-full object-cover md:aspect-video" muted loop playsInline controls poster={c.poster}>
                 <source src={c.src} type="video/mp4" />
               </video>
               <figcaption className="px-4 py-3 font-display text-xl text-[var(--mb-ivory)]">{c.caption}</figcaption>
-            </figure>
+            </SpringCard>
           ))}
         </div>
       </div>
@@ -360,12 +362,12 @@ function Reviews() {
           </div>
           <div className="flex flex-col gap-4">
             {reviews.slice(1, 3).map((r) => (
-              <blockquote key={r.name} className="flex flex-1 flex-col justify-between border border-[var(--mb-line)] bg-[var(--mb-surface)]/60 p-7">
+              <SpringCard key={r.name} tilt={4} lift={-6} className="flex flex-1 flex-col justify-between bg-[var(--mb-surface)]/60 p-7">
                 <p className="font-display text-2xl leading-snug text-[var(--mb-ivory)]">“{r.quote}”</p>
                 <footer className="mt-6 font-mono text-[10px] uppercase tracking-[.16em] text-[var(--mb-muted)]">
                   {r.name} · {r.place}
                 </footer>
-              </blockquote>
+              </SpringCard>
             ))}
             <button data-testid="button-story-inquiry" onClick={() => openBuilder()} className="mt-2 flex items-center gap-3 border-b border-[var(--mb-ivory)]/40 pb-3 text-left text-[10px] font-extrabold uppercase tracking-[.16em] text-[var(--mb-ivory)] hover:border-[var(--mb-champagne)] hover:text-[var(--mb-champagne)]">
               Start a conversation <MoveRight size={16} />
@@ -391,7 +393,7 @@ function VenuesTease() {
         </div>
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {venues.slice(0, 4).map((v, i) => (
-            <button key={v.name} data-testid={`card-venue-${i}`} onClick={() => openBuilder({ source: 'venue_finder', venueName: v.name })} className="group relative min-h-[280px] overflow-hidden text-left">
+            <SpringCard key={v.name} testId={`card-venue-${i}`} label={v.name} onClick={() => openBuilder({ source: 'venue_finder', venueName: v.name })} className="min-h-[280px] overflow-hidden text-left">
               <img src={v.image} alt={v.name} className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-[var(--mb-ink)] via-[var(--mb-ink)]/35 to-transparent" />
               <div className="relative flex h-full flex-col justify-end p-5 text-[var(--mb-ivory)]">
@@ -399,7 +401,7 @@ function VenuesTease() {
                 <h3 className="mt-2 font-display text-2xl leading-tight">{v.name}</h3>
                 <p className="mt-2 text-xs text-white/65">{v.capacity} guests</p>
               </div>
-            </button>
+            </SpringCard>
           ))}
         </div>
         <div className="mt-10 flex flex-wrap gap-3">
@@ -466,14 +468,14 @@ function HomeInner() {
               ['/partners', `${import.meta.env.BASE_URL}media/service-photo.jpg`, 'Partners', 'Photographers, florals, cake, and film we have worked beside.'],
               ['/stories/rob-krista', `${import.meta.env.BASE_URL}media/weddings.jpg`, 'A real night', 'Rob & Krista — then build a celebration in that spirit.'],
             ].map(([href, image, title, text]) => (
-              <Link key={href} href={href} className="group relative min-h-[280px] overflow-hidden">
+              <SpringCard key={href} href={href} label={title} className="min-h-[280px] overflow-hidden">
                 <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[var(--mb-ink)] via-[var(--mb-ink)]/45 to-transparent" />
                 <div className="relative flex h-full min-h-[280px] flex-col justify-end p-7">
                   <h3 className="font-display text-4xl">{title}</h3>
                   <p className="mt-2 max-w-sm text-sm leading-6 text-white/75">{text}</p>
                 </div>
-              </Link>
+              </SpringCard>
             ))}
           </div>
         </div>

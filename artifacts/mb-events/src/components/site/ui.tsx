@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { ArrowRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export function Label({ children }: { children: ReactNode }) {
   return <label className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[var(--mb-muted)]">{children}</label>;
@@ -66,16 +67,19 @@ export function Button({
   } as const;
 
   return (
-    <button
+    <motion.button
       data-testid={testId}
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className={`group inline-flex items-center justify-center gap-3 px-5 py-3 text-[11px] font-extrabold uppercase tracking-[.16em] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--mb-ink)] disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
+      whileHover={disabled ? undefined : { y: -2, scale: 1.03 }}
+      whileTap={disabled ? undefined : { scale: 0.95 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 17, mass: 0.8 }}
+      className={`group inline-flex items-center justify-center gap-3 px-5 py-3 text-[11px] font-extrabold uppercase tracking-[.16em] transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--mb-ink)] disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
     >
       {children}
       {showArrow && <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />}
-    </button>
+    </motion.button>
   );
 }
 
