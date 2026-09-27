@@ -6,6 +6,7 @@ import {
   useSpring,
   useTransform,
   useReducedMotion,
+  type Variants,
 } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +26,75 @@ function useCoarsePointer() {
   if (typeof window === 'undefined' || !window.matchMedia) return false;
   return window.matchMedia('(pointer: coarse)').matches;
 }
+
+const REVEAL_SPRING = { type: 'spring' as const, stiffness: 90, damping: 20, mass: 1 };
+
+/**
+ * Scroll-reveal: content eases + rises into view once, as it enters the
+ * viewport. Respects reduced-motion. Direction controls the offset axis.
+ */
+export function Reveal({
+  children,
+  className,
+  delay = 0,
+  y = 26,
+  once = true,
+}: {
+  children: ReactNode;
+  className?: string;
+  delay?: number;
+  y?: number;
+  once?: boolean;
+}) {
+  const reduceMotion = useReducedMotion();
+  if (reduceMotion) return <div className={className}>{children}</div>;
+  return (
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, y }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once, amount: 0.25, margin: '0px 0px -10% 0px' }}
+      transition={{ ...REVEAL_SPRING, delay }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/**
+ * Staggered container: children using `revealItem` variants animate in
+ * sequence as the group scrolls into view.
+ */
+export function RevealGroup({
+  children,
+  className,
+  stagger = 0.09,
+  once = true,
+}: {
+  children: ReactNode;
+  className?: string;
+  stagger?: number;
+  once?: boolean;
+}) {
+  const reduceMotion = useReducedMotion();
+  if (reduceMotion) return <div className={className}>{children}</div>;
+  return (
+    <motion.div
+      className={className}
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once, amount: 0.2 }}
+      variants={{ show: { transition: { staggerChildren: stagger } } }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+export const revealItem: Variants = {
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: REVEAL_SPRING },
+};
 
 type SpringCardProps = {
   children: ReactNode;

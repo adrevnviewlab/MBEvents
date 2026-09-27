@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
 import { ArrowRight, CalendarDays, MoveRight, Pin } from 'lucide-react';
-import { A, brand, eventTypes, experiences, galleryItems, reviews, serviceCategories, venues, type EventTypeValue } from '@/lib/content';
+import { brand, eventTypes, experiences, galleryItems, reviews, serviceCategories, venues, type EventTypeValue } from '@/lib/content';
 import { Button, SectionEyebrow } from '@/components/site/ui';
 import { SiteShell, useSiteFunnels } from '@/components/site/Layout';
-import { SpringCard } from '@/components/site/motion';
+import { SpringCard, Reveal, RevealGroup, revealItem } from '@/components/site/motion';
+import { motion } from 'framer-motion';
 
 function Hero() {
   const { openBuilder, openDate, openVenue } = useSiteFunnels();
@@ -26,12 +27,15 @@ function Hero() {
       </div>
       <div className="relative mx-auto flex min-h-[100svh] max-w-7xl items-end px-5 pb-16 pt-40 sm:px-8 sm:pb-24 lg:px-12">
         <div className="max-w-3xl animate-rise">
-          <img src={`${A}mb-events-logo.png`} alt={brand.name} className="mb-8 h-14 w-auto object-contain sm:h-16" />
-          <h1 className="max-w-3xl font-display text-[clamp(3.4rem,9vw,7.5rem)] leading-[.86] tracking-[-.04em] text-balance uppercase">
+          <SectionEyebrow>Entertainment & production · Long Island</SectionEyebrow>
+          <h1 className="mt-5 max-w-3xl font-display text-[clamp(3.4rem,9vw,7.5rem)] leading-[.86] tracking-[-.04em] text-balance uppercase">
             Your event
             <br />
             <em className="normal-case text-[var(--mb-champagne)]">starts here.</em>
           </h1>
+          <p className="mt-6 max-w-md text-sm leading-7 text-[var(--mb-ivory-soft)]">
+            DJ, lighting, and production for weddings, Sweet 16s, and every night that has to feel unforgettable.
+          </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Button onClick={() => openBuilder()} variant="red" testId="button-hero-build">
               Build my event
@@ -45,7 +49,12 @@ function Hero() {
               <Pin size={15} />
             </Button>
           </div>
-          <a href={`tel:${brand.phoneTel}`} className="mt-6 inline-block font-mono text-[11px] uppercase tracking-[.18em] text-[var(--mb-ivory-soft)] hover:text-[var(--mb-champagne)]">
+          <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 font-mono text-[9px] uppercase tracking-[.16em] text-[var(--mb-ivory-soft)]">
+            <li>Licensed & insured</li>
+            <li>Wantagh, NY</li>
+            <li>Tri-State & destinations</li>
+          </ul>
+          <a href={`tel:${brand.phoneTel}`} className="mt-5 inline-block font-mono text-[11px] uppercase tracking-[.18em] text-[var(--mb-ivory-soft)] hover:text-[var(--mb-champagne)]">
             Or call {brand.phone}
           </a>
         </div>
@@ -78,18 +87,81 @@ function Marquee() {
   );
 }
 
+function StatsBar() {
+  const stats = [
+    ['5-star', 'Client reviews'],
+    ['15+ yrs', 'On Long Island floors'],
+    ['Licensed', '& fully insured'],
+    ['Tri-State', '+ destinations'],
+  ];
+  return (
+    <section className="border-b border-[var(--mb-line)] bg-[var(--mb-ink)] px-5 py-10 sm:px-8 lg:px-12">
+      <RevealGroup className="mx-auto grid max-w-7xl grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-4" stagger={0.08}>
+        {stats.map(([big, label]) => (
+          <motion.div key={label} variants={revealItem} className="text-center md:text-left">
+            <p className="font-display text-3xl leading-none text-[var(--mb-ivory)] sm:text-4xl">{big}</p>
+            <p className="mt-2 font-mono text-[9px] uppercase tracking-[.18em] text-[var(--mb-champagne)]">{label}</p>
+          </motion.div>
+        ))}
+      </RevealGroup>
+    </section>
+  );
+}
+
+function HowItWorks() {
+  const { openBuilder } = useSiteFunnels();
+  const steps = [
+    ['01', 'Tell us the night', 'Event type, date if you have it, and the feeling you want in the room.'],
+    ['02', 'We hold the date', 'Availability check first — so the night is protected before anything else.'],
+    ['03', 'Design the room', 'DJ, lighting, photo, and production mapped to one clear plan.'],
+    ['04', 'The night itself', 'We run the floor. You stay in the moment.'],
+  ];
+  return (
+    <section className="bg-[var(--mb-ink)] px-5 py-24 sm:px-8 lg:px-12 lg:py-32">
+      <div className="mx-auto max-w-7xl">
+        <Reveal>
+          <SectionEyebrow>How a night comes together</SectionEyebrow>
+          <h2 className="mt-5 max-w-2xl font-display text-5xl leading-[.94] text-[var(--mb-ivory)] sm:text-6xl">
+            From first note
+            <br />
+            <em className="text-[var(--mb-champagne)]">to last dance.</em>
+          </h2>
+        </Reveal>
+        <RevealGroup className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" stagger={0.08}>
+          {steps.map(([num, title, text]) => (
+            <motion.article
+              key={num}
+              variants={revealItem}
+              className="mb-card group border-[var(--mb-line)] bg-[var(--mb-surface)]/40 p-6"
+            >
+              <p className="font-mono text-[10px] uppercase tracking-[.2em] text-[var(--mb-champagne)]">{num}</p>
+              <h3 className="mt-4 font-display text-2xl text-[var(--mb-ivory)]">{title}</h3>
+              <p className="mt-3 text-sm leading-6 text-[var(--mb-muted)]">{text}</p>
+            </motion.article>
+          ))}
+        </RevealGroup>
+        <Reveal className="mt-10" delay={0.12}>
+          <Button onClick={() => openBuilder()} variant="outline" testId="button-process-build">
+            Start with a conversation
+          </Button>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
 function EventTypes() {
   const { openBuilder } = useSiteFunnels();
   return (
     <section id="events" className="bg-[var(--mb-charcoal)] px-5 py-24 sm:px-8 lg:px-12 lg:py-32">
       <div className="mx-auto max-w-7xl">
-        <div className="flex flex-col justify-between gap-7 sm:flex-row sm:items-end">
+        <Reveal className="flex flex-col justify-between gap-7 sm:flex-row sm:items-end">
           <div>
             <SectionEyebrow>01 / Make it yours</SectionEyebrow>
             <h2 className="mt-4 font-display text-5xl leading-none text-[var(--mb-ivory)] sm:text-6xl">Find your kind of night.</h2>
           </div>
           <p className="max-w-xs text-sm leading-6 text-[var(--mb-muted)]">Every celebration has a different pulse. Start with the one that feels most like yours.</p>
-        </div>
+        </Reveal>
         <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {eventTypes.map((type, i) => {
             const dedicated = type.href !== '/services' && type.href !== '/contact';
@@ -138,7 +210,7 @@ function Experiences() {
   return (
     <section id="experiences" className="bg-[var(--mb-ink)] px-5 py-24 text-[var(--mb-ivory)] sm:px-8 lg:px-12 lg:py-32">
       <div className="mx-auto max-w-7xl">
-        <div className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
+        <Reveal className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
           <div>
             <SectionEyebrow tone="gold">02 / Experiences</SectionEyebrow>
             <h2 className="mt-5 max-w-2xl font-display text-5xl leading-[.94] sm:text-7xl">
@@ -153,7 +225,7 @@ function Experiences() {
               See all experiences <MoveRight size={14} />
             </Link>
           </div>
-        </div>
+        </Reveal>
         <div className="mt-14 grid gap-4 lg:grid-cols-3">
           {experiences.map((exp, i) => (
             <SpringCard key={exp.id} className={`min-h-[420px] overflow-hidden ${i === 1 ? 'lg:translate-y-8' : ''}`}>
@@ -184,7 +256,7 @@ function ServicesPreview() {
   return (
     <section id="services" className="bg-[var(--mb-surface)] px-5 py-24 text-[var(--mb-ivory)] sm:px-8 lg:px-12 lg:py-32">
       <div className="mx-auto max-w-7xl">
-        <div className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
+        <Reveal className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
           <div>
             <SectionEyebrow tone="gold">03 / Services</SectionEyebrow>
             <h2 className="mt-5 max-w-2xl font-display text-5xl leading-[.94] sm:text-6xl">
@@ -194,7 +266,7 @@ function ServicesPreview() {
             </h2>
           </div>
           <p className="max-w-sm text-sm leading-7 text-[var(--mb-muted)]">Premium groupings — not a messy laundry list. Tap what matters; we’ll map DJ, lighting, photo, and more underneath.</p>
-        </div>
+        </Reveal>
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {serviceCategories.map((cat, i) => (
             <SpringCard
@@ -237,7 +309,7 @@ function GalleryPreview() {
   return (
     <section id="gallery" className="bg-[var(--mb-charcoal)] px-5 py-24 text-[var(--mb-ivory)] sm:px-8 lg:px-12 lg:py-32">
       <div className="mx-auto max-w-7xl">
-        <div className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
+        <Reveal className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
           <div>
             <SectionEyebrow>04 / In the room</SectionEyebrow>
             <h2 className="mt-5 max-w-2xl font-display text-5xl leading-[.94] sm:text-7xl">
@@ -247,7 +319,7 @@ function GalleryPreview() {
             </h2>
           </div>
           <p className="max-w-sm text-sm leading-7 text-[var(--mb-muted)]">Sparklers, uplighting, lasers, and dancing on the clouds — footage from actual MB celebrations.</p>
-        </div>
+        </Reveal>
         <div className="mt-12 columns-1 gap-4 md:columns-2 lg:columns-3">
           {preview.map((item, i) => (
             <SpringCard key={i} tilt={4} lift={-6} className="mb-4 break-inside-avoid overflow-hidden bg-[var(--mb-elevated)]">
@@ -282,9 +354,11 @@ function BeforeAfter() {
   return (
     <section className="bg-[var(--mb-ink)] px-5 py-24 text-[var(--mb-ivory)] sm:px-8 lg:px-12 lg:py-32">
       <div className="mx-auto max-w-7xl">
-        <SectionEyebrow>The room, after MB</SectionEyebrow>
-        <h2 className="mt-4 max-w-xl font-display text-5xl leading-[.94] sm:text-6xl">Same ballroom. Different night.</h2>
-        <p className="mt-5 max-w-md text-sm leading-7 text-[var(--mb-muted)]">Drag to see a plain room beside MB lighting and production.</p>
+        <Reveal>
+          <SectionEyebrow>The room, after MB</SectionEyebrow>
+          <h2 className="mt-4 max-w-xl font-display text-5xl leading-[.94] sm:text-6xl">Same ballroom. Different night.</h2>
+          <p className="mt-5 max-w-md text-sm leading-7 text-[var(--mb-muted)]">Drag to see a plain room beside MB lighting and production.</p>
+        </Reveal>
         <div className="relative mt-10 aspect-[16/9] overflow-hidden border border-[var(--mb-line)]">
           <img src={`${import.meta.env.BASE_URL}assets/hero-ballroom.jpg`} alt="Ballroom before production" className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
@@ -314,7 +388,7 @@ function SocialRow() {
   return (
     <section className="bg-[var(--mb-charcoal)] px-5 py-20 sm:px-8 lg:px-12">
       <div className="mx-auto max-w-7xl">
-        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+        <Reveal className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div>
             <SectionEyebrow>On social</SectionEyebrow>
             <h2 className="mt-4 font-display text-4xl text-[var(--mb-ivory)] sm:text-5xl">Clips from the floor.</h2>
@@ -323,7 +397,7 @@ function SocialRow() {
             <a href="https://www.instagram.com/mbeventsny/" target="_blank" rel="noreferrer" className="text-[var(--mb-champagne)] hover:text-[var(--mb-ivory)]">Instagram</a>
             <a href="https://www.tiktok.com/@mbeventsny" target="_blank" rel="noreferrer" className="text-[var(--mb-champagne)] hover:text-[var(--mb-ivory)]">TikTok</a>
           </div>
-        </div>
+        </Reveal>
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           {clips.map((c) => (
             <SpringCard key={c.src} tilt={4} lift={-6} className="overflow-hidden">
@@ -345,9 +419,11 @@ function Reviews() {
   return (
     <section id="stories" className="bg-[var(--mb-ink)] px-5 py-24 sm:px-8 lg:px-12 lg:py-32">
       <div className="mx-auto max-w-7xl">
-        <SectionEyebrow>05 / Reviews</SectionEyebrow>
-        <h2 className="mt-5 max-w-2xl font-display text-5xl leading-[.94] text-[var(--mb-ivory)] sm:text-6xl">The best events don’t feel produced.</h2>
-        <p className="mt-5 font-mono text-[10px] uppercase tracking-[.18em] text-[var(--mb-champagne)]">Licensed & insured · Wantagh, NY · Tri-State & destinations</p>
+        <Reveal>
+          <SectionEyebrow>05 / Reviews</SectionEyebrow>
+          <h2 className="mt-5 max-w-2xl font-display text-5xl leading-[.94] text-[var(--mb-ivory)] sm:text-6xl">The best events don’t feel produced.</h2>
+          <p className="mt-5 font-mono text-[10px] uppercase tracking-[.18em] text-[var(--mb-champagne)]">Licensed & insured · Wantagh, NY · Tri-State & destinations</p>
+        </Reveal>
         <div className="mt-12 grid gap-5 lg:grid-cols-[1.2fr_.8fr]">
           <div className="relative min-h-[480px] overflow-hidden bg-[var(--mb-elevated)]">
             <img src={featured.image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" />
@@ -384,13 +460,13 @@ function VenuesTease() {
   return (
     <section id="venues" className="bg-[var(--mb-charcoal)] px-5 py-24 sm:px-8 lg:px-12 lg:py-32">
       <div className="mx-auto max-w-7xl">
-        <div className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
+        <Reveal className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
           <div>
             <SectionEyebrow>06 / Venues</SectionEyebrow>
             <h2 className="mt-5 max-w-xl font-display text-5xl leading-[.94] text-[var(--mb-ivory)] sm:text-6xl">Rooms we know by heart.</h2>
           </div>
           <p className="max-w-sm text-sm leading-7 text-[var(--mb-muted)]">Long Island favorites where our production has filled dance floors for years. Tell us your date — we’ll help match the space.</p>
-        </div>
+        </Reveal>
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {venues.slice(0, 4).map((v, i) => (
             <SpringCard key={v.name} testId={`card-venue-${i}`} label={v.name} onClick={() => openBuilder({ source: 'venue_finder', venueName: v.name })} className="min-h-[280px] overflow-hidden text-left">
@@ -424,7 +500,7 @@ function FinalCta() {
     <section className="relative overflow-hidden bg-[var(--mb-champagne)] px-5 py-24 sm:px-8 lg:px-12 lg:py-28">
       <div className="absolute -right-16 -top-24 h-72 w-72 rounded-full border border-[var(--mb-ink)]/15" />
       <div className="absolute -right-4 -top-10 h-52 w-52 rounded-full border border-[var(--mb-ink)]/15" />
-      <div className="relative mx-auto flex max-w-7xl flex-col justify-between gap-10 lg:flex-row lg:items-end">
+      <Reveal className="relative mx-auto flex max-w-7xl flex-col justify-between gap-10 lg:flex-row lg:items-end">
         <div>
           <SectionEyebrow tone="ink">Ready when you are</SectionEyebrow>
           <h2 className="mt-4 max-w-2xl font-display text-5xl leading-none text-[var(--mb-ink)] sm:text-7xl">Check availability. Start building.</h2>
@@ -439,7 +515,7 @@ function FinalCta() {
             <CalendarDays size={15} />
           </Button>
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }
@@ -449,6 +525,8 @@ function HomeInner() {
     <main id="top">
       <Hero />
       <Marquee />
+      <StatsBar />
+      <HowItWorks />
       <EventTypes />
       <Experiences />
       <ServicesPreview />
@@ -459,8 +537,10 @@ function HomeInner() {
       <VenuesTease />
       <section className="bg-[var(--mb-charcoal)] px-5 py-24 text-[var(--mb-ivory)] sm:px-8 lg:px-12 lg:py-32">
         <div className="mx-auto max-w-7xl">
-          <SectionEyebrow>After you book</SectionEyebrow>
-          <h2 className="mt-4 max-w-xl font-display text-5xl leading-[.94] sm:text-6xl">The night stays in one place.</h2>
+          <Reveal>
+            <SectionEyebrow>After you book</SectionEyebrow>
+            <h2 className="mt-4 max-w-xl font-display text-5xl leading-[.94] sm:text-6xl">The night stays in one place.</h2>
+          </Reveal>
           <div className="mt-12 grid gap-4 md:grid-cols-2">
             {[
               ['/plan/jessica', `${import.meta.env.BASE_URL}media/sparkle-reception.jpg`, 'Planner', 'Countdown, checklist, music, and the people on your team.'],

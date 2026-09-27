@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { CalendarDays, Menu, Pin, X } from 'lucide-react';
+import { Menu, Pin, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { A, brand, type EventTypeValue, type ExperienceId, type LeadSource } from '@/lib/content';
 import { BuildMyEventWizard, CheckMyDateModal, FindVenueModal } from '@/components/site/funnels';
@@ -69,13 +69,29 @@ export function SiteHeader({
   solid?: boolean;
 }) {
   const [menu, setMenu] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const [location] = useLocation();
 
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const headerBase = solid
+    ? 'relative border-b border-[var(--mb-line)] bg-[var(--mb-ink)]'
+    : `fixed inset-x-0 top-0 transition-[background-color,border-color,backdrop-filter] duration-500 ${
+        scrolled
+          ? 'border-b border-[var(--mb-line)] bg-[var(--mb-ink)]/80 backdrop-blur-xl'
+          : 'border-b border-transparent bg-transparent'
+      }`;
+
   return (
-    <header className={`${solid ? 'relative border-b border-[var(--mb-line)] bg-[var(--mb-ink)]' : 'absolute inset-x-0 top-0'} z-30`}>
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
+    <header className={`${headerBase} z-40`}>
+      <div className={`mx-auto flex max-w-7xl items-center justify-between px-5 transition-[padding] duration-500 sm:px-8 lg:px-12 ${scrolled && !solid ? 'py-3' : 'py-5'}`}>
         <Link data-testid="link-home-logo" href="/" className="flex items-center">
-          <img src={`${A}mb-events-logo.png`} alt={brand.name} className="h-10 w-auto object-contain sm:h-12" />
+          <img src={`${A}mb-events-logo.png`} alt={brand.name} className={`w-auto object-contain transition-[height] duration-500 ${scrolled && !solid ? 'h-8 sm:h-9' : 'h-10 sm:h-12'}`} />
         </Link>
         <nav className="hidden items-center gap-6 xl:flex">
           {navLinks.map((l) => (
@@ -98,7 +114,7 @@ export function SiteHeader({
             whileHover={{ y: -2, scale: 1.04 }}
             whileTap={{ scale: 0.95 }}
             transition={CTA_SPRING}
-            className="border border-[var(--mb-ivory)]/45 px-4 py-2.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-[var(--mb-ivory)] transition-colors hover:border-[var(--mb-champagne)] hover:text-[var(--mb-champagne)]"
+            className="rounded-full border border-[var(--mb-ivory)]/45 px-4 py-2.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-[var(--mb-ivory)] transition-colors hover:border-[var(--mb-champagne)] hover:text-[var(--mb-champagne)]"
           >
             Check my date
           </motion.button>
@@ -108,7 +124,7 @@ export function SiteHeader({
             whileHover={{ y: -2, scale: 1.04 }}
             whileTap={{ scale: 0.95 }}
             transition={CTA_SPRING}
-            className="bg-[var(--mb-champagne)] px-4 py-2.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-[var(--mb-ink)] transition-colors hover:bg-[var(--mb-ivory)]"
+            className="rounded-full bg-[var(--mb-champagne)] px-4 py-2.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-[var(--mb-ink)] transition-colors hover:bg-[var(--mb-ivory)]"
           >
             Build my event
           </motion.button>
@@ -179,7 +195,10 @@ export function SiteFooter() {
           </p>
         </div>
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[.2em] text-[var(--mb-champagne)]">Explore</p>
+          <p className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[.2em] text-[var(--mb-champagne)]">
+            <span className="h-px w-6 bg-[var(--mb-champagne)]" aria-hidden />
+            Explore
+          </p>
           <div className="mt-4 flex flex-col gap-2">
             {[...navLinks, ...platformLinks].map((l) => (
               <Link key={l.href} href={l.href} className="text-sm text-white/75 hover:text-[var(--mb-champagne)]">
@@ -189,7 +208,10 @@ export function SiteFooter() {
           </div>
         </div>
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[.2em] text-[var(--mb-champagne)]">Say hello</p>
+          <p className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[.2em] text-[var(--mb-champagne)]">
+            <span className="h-px w-6 bg-[var(--mb-champagne)]" aria-hidden />
+            Say hello
+          </p>
           <a data-testid="link-footer-phone" href={`tel:${brand.phoneTel}`} className="mt-4 block text-sm text-white/80 hover:text-[var(--mb-champagne)]">
             {brand.phone}
           </a>
@@ -198,7 +220,10 @@ export function SiteFooter() {
           </a>
         </div>
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[.2em] text-[var(--mb-champagne)]">Based in Wantagh</p>
+          <p className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[.2em] text-[var(--mb-champagne)]">
+            <span className="h-px w-6 bg-[var(--mb-champagne)]" aria-hidden />
+            Based in Wantagh
+          </p>
           <p className="mt-4 max-w-[220px] text-sm leading-6 text-[var(--mb-muted)]">
             {brand.address}
             <br />
@@ -236,7 +261,10 @@ export function PageHero({
         </div>
       )}
       <div className="relative mx-auto max-w-7xl">
-        <p className="font-mono text-[10px] uppercase tracking-[.22em] text-[var(--mb-champagne)]">{eyebrow}</p>
+        <p className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[.22em] text-[var(--mb-champagne)]">
+          <span className="h-px w-8 bg-[var(--mb-champagne)]" aria-hidden />
+          {eyebrow}
+        </p>
         <h1 className="mt-4 max-w-3xl font-display text-5xl leading-[.94] sm:text-7xl">{title}</h1>
         {subtitle && <p className="mt-6 max-w-xl text-sm leading-7 text-[var(--mb-ivory-soft)]">{subtitle}</p>}
         {children && <div className="mt-8">{children}</div>}
@@ -278,8 +306,14 @@ export function SiteShell({ children, solidHeader = false }: { children: ReactNo
   return (
     <FunnelsContext.Provider value={{ openBuilder, openDate, openVenue }}>
       <div className="grain min-h-screen overflow-x-hidden bg-[var(--mb-ink)]">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-[var(--mb-champagne)] focus:px-4 focus:py-2 focus:text-[10px] focus:font-extrabold focus:uppercase focus:tracking-[.16em] focus:text-[var(--mb-ink)]"
+        >
+          Skip to main content
+        </a>
         <SiteHeader onBuild={() => openBuilder()} onDate={openDate} onVenue={openVenue} solid={solidHeader} />
-        <div className="pb-24 xl:pb-0">{children}</div>
+        <div id="main-content" className="pb-24 xl:pb-0">{children}</div>
         <SiteFooter />
         {!builder && !dateCheck && !venueModal && (
         <motion.div
@@ -289,10 +323,10 @@ export function SiteShell({ children, solidHeader = false }: { children: ReactNo
           className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-[var(--mb-line)] bg-[var(--mb-ink)]/95 p-3 backdrop-blur-md xl:hidden"
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         >
-          <motion.button whileTap={{ scale: 0.96 }} data-testid="button-sticky-build" onClick={() => openBuilder()} className="flex-1 bg-[var(--mb-champagne)] py-3.5 text-[10px] font-extrabold uppercase tracking-[.14em] text-[var(--mb-ink)]">
+          <motion.button whileTap={{ scale: 0.96 }} data-testid="button-sticky-build" onClick={() => openBuilder()} className="flex-1 rounded-full bg-[var(--mb-champagne)] py-3.5 text-[10px] font-extrabold uppercase tracking-[.14em] text-[var(--mb-ink)]">
             Build my event
           </motion.button>
-          <motion.button whileTap={{ scale: 0.96 }} data-testid="button-sticky-date" onClick={openDate} className="flex-1 border border-[var(--mb-ivory)]/40 py-3.5 text-[10px] font-extrabold uppercase tracking-[.14em] text-[var(--mb-ivory)]">
+          <motion.button whileTap={{ scale: 0.96 }} data-testid="button-sticky-date" onClick={openDate} className="flex-1 rounded-full border border-[var(--mb-ivory)]/40 py-3.5 text-[10px] font-extrabold uppercase tracking-[.14em] text-[var(--mb-ivory)]">
             Check my date
           </motion.button>
         </motion.div>

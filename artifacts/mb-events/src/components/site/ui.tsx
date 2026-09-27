@@ -75,7 +75,7 @@ export function Button({
       whileHover={disabled ? undefined : { y: -2, scale: 1.03 }}
       whileTap={disabled ? undefined : { scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 420, damping: 17, mass: 0.8 }}
-      className={`group inline-flex items-center justify-center gap-3 px-5 py-3 text-[11px] font-extrabold uppercase tracking-[.16em] transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--mb-ink)] disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
+      className={`group inline-flex items-center justify-center gap-3 rounded-full px-6 py-3.5 text-[11px] font-extrabold uppercase tracking-[.16em] transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--mb-ink)] disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
     >
       {children}
       {showArrow && <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />}
@@ -91,5 +91,16 @@ export function SectionEyebrow({ children, tone = 'gold' }: { children: ReactNod
       : resolved === 'ink'
         ? 'text-[var(--mb-ink)]/65'
         : 'text-[var(--mb-crimson)]';
-  return <p className={`font-mono text-[10px] uppercase tracking-[.2em] ${color}`}>{children}</p>;
+  const rule =
+    resolved === 'gold'
+      ? 'bg-[var(--mb-champagne)]'
+      : resolved === 'ink'
+        ? 'bg-[var(--mb-ink)]/45'
+        : 'bg-[var(--mb-crimson)]';
+  return (
+    <p className={`flex items-center gap-3 font-mono text-[10px] uppercase tracking-[.2em] ${color}`}>
+      <span className={`h-px w-8 ${rule}`} aria-hidden />
+      {children}
+    </p>
+  );
 }
