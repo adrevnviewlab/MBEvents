@@ -318,7 +318,7 @@ function GalleryPreview() {
               <em className="text-[var(--mb-champagne)]">Real nights.</em>
             </h2>
           </div>
-          <p className="max-w-sm text-sm leading-7 text-[var(--mb-muted)]">Sparklers, uplighting, lasers, and dancing on the clouds — footage from actual MB celebrations.</p>
+          <p className="max-w-sm text-sm leading-7 text-[var(--mb-muted)]">Sparklers, lasers, haze, and a packed dance floor in 4K — mixed with recaps from real MB celebrations.</p>
         </Reveal>
         <div className="mt-12 columns-1 gap-4 md:columns-2 lg:columns-3">
           {preview.map((item, i) => (
@@ -543,9 +543,9 @@ function HomeInner() {
           </Reveal>
           <div className="mt-12 grid gap-4 md:grid-cols-2">
             {[
-              ['/plan/jessica', `${import.meta.env.BASE_URL}media/sparkle-reception.jpg`, 'Planner', 'Countdown, checklist, music, and the people on your team.'],
+              ['/plan/jessica', `${import.meta.env.BASE_URL}media/service-planning.jpg`, 'Planner', 'Countdown, checklist, music, and the people on your team.'],
               ['/e/jessica16', `${import.meta.env.BASE_URL}media/sparkler-entrance-hero-poster.jpg`, 'Invitation', 'One link for the invite, the RSVP, and the night itself.'],
-              ['/partners', `${import.meta.env.BASE_URL}media/service-photo.jpg`, 'Partners', 'Photographers, florals, cake, and film we have worked beside.'],
+              ['/partners', `${import.meta.env.BASE_URL}media/partner-floral.jpg`, 'Partners', 'Photographers, florals, cake, and film we have worked beside.'],
               ['/stories/rob-krista', `${import.meta.env.BASE_URL}media/weddings.jpg`, 'A real night', 'Rob & Krista — then build a celebration in that spirit.'],
             ].map(([href, image, title, text]) => (
               <SpringCard key={href} href={href} label={title} className="min-h-[280px] overflow-hidden">

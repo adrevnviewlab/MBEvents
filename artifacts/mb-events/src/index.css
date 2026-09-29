@@ -211,6 +211,106 @@
       transition: none;
     }
   }
+
+  /*
+   * Interactive surfaces — border-mass spotlight + sibling dim.
+   * Pointer springs drive --hx/--hy/--h-opacity; CSS only crossfades dim.
+   */
+  .surface-group {
+    --surface-rest: 1;
+    --surface-dim: 0.62;
+    --surface-highlight: 1;
+    --stroke-rest: var(--mb-line-strong);
+    --stroke-active: color-mix(in oklab, var(--mb-champagne) 72%, white);
+    --highlight: var(--mb-champagne);
+  }
+
+  .surface-group.surface-group-buttons {
+    --surface-dim: 0.7;
+  }
+
+  .surface-group:has(:hover) .surface:not(:hover):not(:focus-visible):not([aria-pressed='true']),
+  .surface-group:has(:focus-visible) .surface:not(:hover):not(:focus-visible):not([aria-pressed='true']) {
+    opacity: var(--surface-dim);
+  }
+
+  .surface {
+    position: relative;
+    opacity: var(--surface-rest);
+    border: 1px solid var(--stroke-rest);
+    --hx: 0.5;
+    --hy: 0.5;
+    --h-opacity: 0;
+    background:
+      radial-gradient(
+        180px circle at calc(var(--hx) * 100%) calc(var(--hy) * 100%),
+        color-mix(in oklab, var(--highlight) 22%, transparent),
+        transparent 55%
+      ),
+      var(--surface-fill, transparent);
+    transition: opacity 160ms ease, border-color 160ms ease;
+    touch-action: manipulation;
+  }
+
+  .surface:hover,
+  .surface:focus-visible,
+  .surface[aria-pressed='true'] {
+    opacity: var(--surface-highlight);
+    border-color: var(--stroke-active);
+  }
+
+  .surface[aria-pressed='true'] {
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--mb-champagne) 35%, transparent);
+  }
+
+  .surface:focus-visible {
+    outline: none;
+  }
+
+  .surface::after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(
+      140px circle at calc(var(--hx) * 100%) calc(var(--hy) * 100%),
+      var(--highlight),
+      transparent 50%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: var(--h-opacity);
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    .surface-group:has(:hover) .surface:not(:hover):not(:focus-visible):not([aria-pressed='true']) {
+      opacity: var(--surface-rest);
+    }
+
+    .surface-group:has(.surface[aria-pressed='true']) .surface:not([aria-pressed='true']):not(:focus-visible) {
+      opacity: var(--surface-dim);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .surface {
+      transition: opacity 80ms ease, border-color 80ms ease;
+    }
+
+    .surface:hover,
+    .surface:focus-visible,
+    .surface[aria-pressed='true'] {
+      --hx: 0.5;
+      --hy: 0.12;
+      --h-opacity: 1;
+    }
+  }
 }
 
 @layer utilities {
@@ -257,10 +357,27 @@
   0%, 100% { opacity: .35; }
   50% { opacity: .55; }
 }
+@keyframes eq-bar {
+  0%, 100% { transform: scaleY(0.28); }
+  50% { transform: scaleY(1); }
+}
+@keyframes laser-sweep {
+  0% { transform: rotate(-18deg); opacity: 0.15; }
+  50% { transform: rotate(14deg); opacity: 0.7; }
+  100% { transform: rotate(-18deg); opacity: 0.15; }
+}
 .animate-rise { animation: rise .8s both cubic-bezier(.2,.75,.2,1); }
 .animate-float { animation: float 5s ease-in-out infinite; }
 .animate-soft-zoom { animation: soft-zoom 18s ease-in-out alternate infinite; }
 .animate-ember { animation: ember-glow 6s ease-in-out infinite; }
+.eq-bar {
+  transform-origin: bottom;
+  animation: eq-bar 0.72s ease-in-out infinite;
+}
+.laser-beam {
+  transform-origin: top center;
+  animation: laser-sweep 5.4s ease-in-out infinite;
+}
 .marquee-track { animation: marquee 32s linear infinite; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

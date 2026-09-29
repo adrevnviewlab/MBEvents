@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -20,6 +21,15 @@ export default defineConfig({
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
+    {
+      name: 'omit-media-source-dumps',
+      closeBundle() {
+        const mediaOut = path.resolve(import.meta.dirname, 'dist/public/media');
+        for (const dir of ['_img_src', '_4k_src', '_preview_check']) {
+          fs.rmSync(path.join(mediaOut, dir), { recursive: true, force: true });
+        }
+      },
+    },
     ...(process.env.NODE_ENV !== 'production' &&
     process.env.REPL_ID !== undefined
       ? [

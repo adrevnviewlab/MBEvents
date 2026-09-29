@@ -1,14 +1,14 @@
-import { M, partners } from '@/lib/content';
+import { A, M, partners } from '@/lib/content';
 import { Button, SectionEyebrow } from '@/components/site/ui';
 import { PageHero, SiteShell, useSiteFunnels } from '@/components/site/Layout';
 
 const shots = [
   `${M}service-photo.jpg`,
-  `${M}service-planning.jpg`,
-  `${M}sparkle-reception.jpg`,
-  `${M}service-specialty.jpg`,
-  `${M}service-photo-exp.jpg`,
-  `${M}uplighting-ballroom.jpg`,
+  `${M}partner-floral.jpg`,
+  `${A}wedding-cake.jpg`,
+  `${M}partner-decor.jpg`,
+  `${M}partner-film.jpg`,
+  `${M}partner-transport.jpg`,
 ];
 
 function Inner() {

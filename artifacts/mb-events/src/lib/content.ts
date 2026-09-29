@@ -75,7 +75,7 @@ export const eventTypes: {
   {
     label: 'Birthday Party',
     value: 'Birthday Party',
-    image: `${M}sparkle-reception.jpg`,
+    image: `${M}birthday-cake.jpg`,
     blurb: 'Milestone birthdays with energy, light, and great pacing.',
     href: '/birthday',
   },
@@ -89,14 +89,14 @@ export const eventTypes: {
   {
     label: 'School / Graduation Event',
     value: 'School / Graduation Event',
-    image: `${A}corporate-party.jpg`,
+    image: `${M}school.jpg`,
     blurb: 'Proms, graduations, and school nights that feel premium.',
     href: '/school',
   },
   {
     label: 'Private Party',
     value: 'Private Party',
-    image: `${A}hero-ballroom.jpg`,
+    image: `${M}private-party.jpg`,
     blurb: 'Anniversaries, reunions, and any room with a reason.',
     href: '/private-party',
   },
@@ -121,7 +121,7 @@ export const experiences: {
     id: 'nightclub',
     title: 'Nightclub Energy',
     tagline: 'Lasers, bass, and a floor that never cools down.',
-    image: `${M}hero-laser-dance-poster.jpg`,
+    image: `${M}nightclub-energy.jpg`,
     detail:
       'High-impact lighting, DJ direction, and party motivators that turn a ballroom into a club — the same spark and laser energy clients rave about.',
     includes: ['Intelligent lighting & lasers', 'DJ + MC direction', 'Party motivators / dancers', 'Club-style sound'],
@@ -130,7 +130,7 @@ export const experiences: {
     id: 'luxury',
     title: 'Modern Luxury',
     tagline: 'Quiet confidence. Soft light. Every cue lands.',
-    image: `${M}hero3-table.png`,
+    image: `${M}hero3-table.jpg`,
     detail:
       'Refined production for black-tie dinners, cocktail hours, and celebrations that whisper instead of shout — uplighting, soft cues, polished hosting.',
     includes: ['Warm uplighting', 'Ceremony & reception pacing', 'Refined MC hosting', 'Photo & video cues'],
@@ -264,7 +264,7 @@ export const galleryItems = [
   {
     type: 'video' as const,
     src: `${M}mb-sound-dance-floor.mp4`,
-    poster: `${M}uplighting-ballroom.jpg`,
+    poster: `${M}nightclub-energy.jpg`,
     label: 'Dance floor',
     caption: 'Production that fills the room.',
   },
@@ -286,6 +286,18 @@ export const galleryItems = [
     label: 'Reception sparkle',
     caption: 'Warm light, sharp timing.',
   },
+  {
+    type: 'image' as const,
+    src: `${M}weddings.jpg`,
+    label: 'Newlyweds',
+    caption: 'Every cue, then the first walk as a couple.',
+  },
+  {
+    type: 'image' as const,
+    src: `${M}wedding-ambiance.jpg`,
+    label: 'Ceremony light',
+    caption: 'The room before the night begins.',
+  },
 ];
 
 export const reviews = [
@@ -294,21 +306,21 @@ export const reviews = [
       'Best part of our wedding — absolutely blown away by the DJ, MC, and photobooth. Easy to work with, punctual, fair with prices. Guests told us over 10 times the DJ was the best they’d heard at any event.',
     name: 'Nick & Cindy K.',
     place: 'Wedding · Nov 2025',
-    image: `${M}weddings.jpg`,
+    image: `${M}review-wedding.jpg`,
   },
   {
     quote:
       'The BEST DJ EVER!! Perfect blend of songs, dancing all night. Mike catered to our needs — and the planning portal for songs and timeline made everything easy.',
     name: 'Abigail G.',
     place: 'Wedding · Jul 2025',
-    image: `${A}sweet-sixteen.jpg`,
+    image: `${M}review-couple.jpg`,
   },
   {
     quote:
       'Everything was perfect. The sound quality, photo booth, dancing on a cloud, and beautiful equipment setup were all amazing. You will not be disappointed.',
     name: 'DeNae H.',
     place: 'Wedding · Apr 2025',
-    image: `${M}laser-dance-poster.jpg`,
+    image: `${M}nightclub-energy.jpg`,
   },
   {
     quote:
@@ -329,10 +341,10 @@ export const reviews = [
 export const venues = [
   { name: 'The Inn at New Hyde Park', area: 'New Hyde Park', capacity: '150–400', image: `${A}hero-ballroom.jpg`, vibe: 'Grand ballroom · Classic LI favorite' },
   { name: 'Crest Hollow Country Club', area: 'Woodbury', capacity: '200–500', image: `${M}hero1.jpg`, vibe: 'Country club elegance · Big nights' },
-  { name: 'The Sands Regency', area: 'Atlantic Beach', capacity: '100–350', image: `${M}hero3-table.png`, vibe: 'Waterfront polish · Soft light' },
-  { name: 'Harbor Club at Prime', area: 'Huntington', capacity: '80–250', image: `${A}corporate-party.jpg`, vibe: 'Harbor views · Intimate luxury' },
-  { name: 'Rocco Anthony’s', area: 'East Rockaway', capacity: '80–220', image: `${M}uplighting-ballroom.jpg`, vibe: 'Affiliate venue · Warm receptions' },
-  { name: 'Wantagh & LI favorites', area: 'Long Island', capacity: 'Flexible', image: `${M}weddings.jpg`, vibe: 'We’ll match rooms we know by heart' },
+  { name: 'The Sands Regency', area: 'Atlantic Beach', capacity: '100–350', image: `${M}hero3-table.jpg`, vibe: 'Waterfront polish · Soft light' },
+  { name: 'Harbor Club at Prime', area: 'Huntington', capacity: '80–250', image: `${M}venue-harbor.jpg`, vibe: 'Harbor views · Intimate luxury' },
+  { name: 'Rocco Anthony’s', area: 'East Rockaway', capacity: '80–220', image: `${M}venue-rocco.jpg`, vibe: 'Affiliate venue · Warm receptions' },
+  { name: 'Wantagh & LI favorites', area: 'Long Island', capacity: 'Flexible', image: `${M}venue-wantagh.jpg`, vibe: 'We’ll match rooms we know by heart' },
 ];
 
 export const faqs = [

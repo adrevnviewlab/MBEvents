@@ -18,7 +18,7 @@ function Inner() {
           </>
         }
         subtitle="Three production directions drawn from how MB Events actually transforms rooms — from lasers to soft luxury to full takeover."
-        image={`${M}laser-dance-poster.jpg`}
+        image={`${M}nightclub-energy.jpg`}
       />
       <section className="bg-[var(--mb-charcoal)] px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
         <div className="mx-auto flex max-w-7xl flex-col gap-16">
