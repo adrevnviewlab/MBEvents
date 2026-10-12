@@ -1,0 +1,4 @@
+# Build products are recreated on Vercel; including them doubles the source upload.
+artifacts/mb-events/dist/
+**/.next/
+**/tsconfig.tsbuildinfo
