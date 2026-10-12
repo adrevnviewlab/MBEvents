@@ -8,18 +8,17 @@ import { ServicesPage } from '@/pages/Services';
 import { GalleryPage } from '@/pages/Gallery';
 import { VenuesPage } from '@/pages/Venues';
 import { ContactPage } from '@/pages/Contact';
+import { AboutPage } from '@/pages/About';
 import { WeddingsPage } from '@/pages/Weddings';
 import { Sweet16Page } from '@/pages/Sweet16';
 import { QuincePage } from '@/pages/Quince';
 import { MitzvahPage } from '@/pages/Mitzvah';
 import { CorporatePage } from '@/pages/Corporate';
-import { InvitePage } from '@/pages/Invite';
 import { BirthdayPage } from '@/pages/Birthday';
 import { SchoolPage } from '@/pages/School';
 import { PrivatePartyPage } from '@/pages/PrivateParty';
 import { PartnersPage } from '@/pages/Partners';
 import { StoryPage } from '@/pages/Story';
-import { PlannerPage } from '@/pages/Planner';
 import { Route, Switch, Router as WouterRouter, Link } from 'wouter';
 
 const queryClient = new QueryClient();
@@ -47,18 +46,17 @@ function Router() {
       <Route path="/portfolio" component={GalleryPage} />
       <Route path="/venues" component={VenuesPage} />
       <Route path="/contact" component={ContactPage} />
+      <Route path="/about" component={AboutPage} />
       <Route path="/weddings" component={WeddingsPage} />
       <Route path="/sweet-16" component={Sweet16Page} />
       <Route path="/quinceanera" component={QuincePage} />
       <Route path="/mitzvah" component={MitzvahPage} />
       <Route path="/corporate" component={CorporatePage} />
-      <Route path="/e/jessica16" component={InvitePage} />
       <Route path="/birthday" component={BirthdayPage} />
       <Route path="/school" component={SchoolPage} />
       <Route path="/private-party" component={PrivatePartyPage} />
       <Route path="/partners" component={PartnersPage} />
       <Route path="/stories/rob-krista" component={StoryPage} />
-      <Route path="/plan/jessica" component={PlannerPage} />
       <Route component={NotFound} />
     </Switch>
   );

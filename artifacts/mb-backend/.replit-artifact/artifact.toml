@@ -1,0 +1,26 @@
+kind = "api"
+title = "MB Events Backend"
+version = "1.0.0"
+id = "artifacts/mb-backend"
+
+[[services]]
+name = "backend"
+paths = ["/api", "/admin", "/planner", "/_next"]
+localPort = 8081
+
+[services.development]
+run = "pnpm --filter @workspace/mb-backend run dev"
+
+[services.production]
+[services.production.build]
+args = ["pnpm", "--filter", "@workspace/mb-backend", "run", "build"]
+
+[services.production.run]
+args = ["pnpm", "--filter", "@workspace/mb-backend", "run", "start"]
+
+[services.production.run.env]
+PORT = "8081"
+NODE_ENV = "production"
+
+[services.production.health.startup]
+path = "/api/healthz"

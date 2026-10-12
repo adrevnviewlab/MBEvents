@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Menu, Pin, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { A, brand, type EventTypeValue, type ExperienceId, type LeadSource } from '@/lib/content';
 import { BuildMyEventWizard, CheckMyDateModal, FindVenueModal } from '@/components/site/funnels';
@@ -40,32 +40,28 @@ export function useSiteFunnels() {
 }
 
 const navLinks = [
-  { href: '/weddings', label: 'Weddings' },
   { href: '/experiences', label: 'Experiences' },
-  { href: '/services', label: 'Services' },
-  { href: '/gallery', label: 'Gallery' },
   { href: '/venues', label: 'Venues' },
-  { href: '/contact', label: 'Contact' },
+  { href: '/gallery', label: 'Real Events' },
+  { href: '/about', label: 'About Us' },
 ];
 
-const platformLinks = [
-  { href: '/plan/jessica', label: 'Planner' },
-  { href: '/e/jessica16', label: 'Sample invite' },
+const secondaryLinks = [
+  { href: '/weddings', label: 'Weddings' },
+  { href: '/sweet-16', label: 'Sweet 16s' },
+  { href: '/services', label: 'Services' },
+  { href: '/contact', label: 'Contact' },
   { href: '/partners', label: 'Partners' },
-  { href: '/stories/rob-krista', label: 'Real story' },
+  { href: '/stories/rob-krista', label: 'Featured story' },
 ];
 
 const CTA_SPRING = { type: 'spring' as const, stiffness: 420, damping: 17, mass: 0.8 };
 
 export function SiteHeader({
-  onBuild,
   onDate,
-  onVenue,
   solid = false,
 }: {
-  onBuild: () => void;
   onDate: () => void;
-  onVenue: () => void;
   solid?: boolean;
 }) {
   const [menu, setMenu] = useState(false);
@@ -110,26 +106,17 @@ export function SiteHeader({
           ))}
           <motion.button
             data-testid="button-header-date"
+            type="button"
             onClick={onDate}
             whileHover={{ y: -2, scale: 1.04 }}
             whileTap={{ scale: 0.95 }}
             transition={CTA_SPRING}
-            className="rounded-full border border-[var(--mb-ivory)]/45 px-4 py-2.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-[var(--mb-ivory)] transition-colors hover:border-[var(--mb-champagne)] hover:text-[var(--mb-champagne)]"
+            className="rounded-full bg-[var(--mb-champagne)] px-5 py-2.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-[var(--mb-ink)] transition-colors hover:bg-[var(--mb-ivory)]"
           >
             Check my date
           </motion.button>
-          <motion.button
-            data-testid="button-header-build"
-            onClick={onBuild}
-            whileHover={{ y: -2, scale: 1.04 }}
-            whileTap={{ scale: 0.95 }}
-            transition={CTA_SPRING}
-            className="rounded-full bg-[var(--mb-champagne)] px-4 py-2.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-[var(--mb-ink)] transition-colors hover:bg-[var(--mb-ivory)]"
-          >
-            Build my event
-          </motion.button>
         </nav>
-        <motion.button data-testid="button-mobile-menu" whileTap={{ scale: 0.85 }} onClick={() => setMenu(!menu)} className="text-[var(--mb-ivory)] xl:hidden" aria-label="Open menu">
+        <motion.button data-testid="button-mobile-menu" type="button" whileTap={{ scale: 0.85 }} onClick={() => setMenu(!menu)} className="text-[var(--mb-ivory)] xl:hidden" aria-label={menu ? 'Close menu' : 'Open menu'} aria-expanded={menu}>
           <motion.span animate={{ rotate: menu ? 90 : 0 }} transition={CTA_SPRING} className="inline-flex">
             {menu ? <X /> : <Menu />}
           </motion.span>
@@ -167,14 +154,8 @@ export function SiteHeader({
                   </Link>
                 </motion.div>
               ))}
-              <motion.button variants={{ closed: { opacity: 0, y: 10 }, open: { opacity: 1, y: 0 } }} whileTap={{ scale: 0.97 }} data-testid="button-mobile-venue" onClick={() => { setMenu(false); onVenue(); }} className="mt-4 flex w-full items-center justify-center gap-2 border border-[var(--mb-line-strong)] py-3.5 text-xs font-bold uppercase tracking-widest text-[var(--mb-ivory)]">
-                Find a venue <Pin size={14} />
-              </motion.button>
-              <motion.button variants={{ closed: { opacity: 0, y: 10 }, open: { opacity: 1, y: 0 } }} whileTap={{ scale: 0.97 }} data-testid="button-mobile-date" onClick={() => { setMenu(false); onDate(); }} className="mt-3 w-full border border-[var(--mb-line-strong)] py-3.5 text-xs font-bold uppercase tracking-widest text-[var(--mb-ivory)]">
+              <motion.button variants={{ closed: { opacity: 0, y: 10 }, open: { opacity: 1, y: 0 } }} whileTap={{ scale: 0.97 }} data-testid="button-mobile-date" type="button" onClick={() => { setMenu(false); onDate(); }} className="mt-5 w-full rounded-full bg-[var(--mb-champagne)] py-4 text-xs font-extrabold uppercase tracking-widest text-[var(--mb-ink)] transition-colors hover:bg-[var(--mb-ivory)]">
                 Check my date
-              </motion.button>
-              <motion.button variants={{ closed: { opacity: 0, y: 10 }, open: { opacity: 1, y: 0 } }} whileTap={{ scale: 0.97 }} data-testid="button-mobile-build" onClick={() => { setMenu(false); onBuild(); }} className="mt-3 w-full bg-[var(--mb-champagne)] py-4 text-xs font-bold uppercase tracking-widest text-[var(--mb-ink)]">
-                Build my event
               </motion.button>
             </motion.div>
           </motion.div>
@@ -200,11 +181,12 @@ export function SiteFooter() {
             Explore
           </p>
           <div className="mt-4 flex flex-col gap-2">
-            {[...navLinks, ...platformLinks].map((l) => (
+            {[...navLinks, ...secondaryLinks].map((l) => (
               <Link key={l.href} href={l.href} className="text-sm text-white/75 hover:text-[var(--mb-champagne)]">
                 {l.label}
               </Link>
             ))}
+            <a href="/planner" className="text-sm text-white/75 hover:text-[var(--mb-champagne)]">Client planner</a>
           </div>
         </div>
         <div>
@@ -312,7 +294,7 @@ export function SiteShell({ children, solidHeader = false }: { children: ReactNo
         >
           Skip to main content
         </a>
-        <SiteHeader onBuild={() => openBuilder()} onDate={openDate} onVenue={openVenue} solid={solidHeader} />
+        <SiteHeader onDate={openDate} solid={solidHeader} />
         <div id="main-content" className="pb-24 xl:pb-0">{children}</div>
         <SiteFooter />
         {!builder && !dateCheck && !venueModal && (
@@ -320,13 +302,10 @@ export function SiteShell({ children, solidHeader = false }: { children: ReactNo
           initial={{ y: 80, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.15 }}
-          className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-[var(--mb-line)] bg-[var(--mb-ink)]/95 p-3 backdrop-blur-md xl:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 flex border-t border-[var(--mb-line)] bg-[var(--mb-ink)]/95 p-3 backdrop-blur-md xl:hidden"
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         >
-          <motion.button whileTap={{ scale: 0.96 }} data-testid="button-sticky-build" onClick={() => openBuilder()} className="flex-1 rounded-full bg-[var(--mb-champagne)] py-3.5 text-[10px] font-extrabold uppercase tracking-[.14em] text-[var(--mb-ink)]">
-            Build my event
-          </motion.button>
-          <motion.button whileTap={{ scale: 0.96 }} data-testid="button-sticky-date" onClick={openDate} className="flex-1 rounded-full border border-[var(--mb-ivory)]/40 py-3.5 text-[10px] font-extrabold uppercase tracking-[.14em] text-[var(--mb-ivory)]">
+          <motion.button whileTap={{ scale: 0.96 }} data-testid="button-sticky-date" type="button" onClick={openDate} className="w-full rounded-full bg-[var(--mb-champagne)] py-3.5 text-[10px] font-extrabold uppercase tracking-[.14em] text-[var(--mb-ink)] transition-colors hover:bg-[var(--mb-ivory)]">
             Check my date
           </motion.button>
         </motion.div>

@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "framework": "vite",
+  "buildCommand": "pnpm --filter @workspace/mb-events run build",
+  "outputDirectory": "artifacts/mb-events/dist/public",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://mbny-core.vercel.app/api/:path*" },
+    { "source": "/admin", "destination": "https://mbny-core.vercel.app/admin" },
+    { "source": "/admin/:path*", "destination": "https://mbny-core.vercel.app/admin/:path*" },
+    { "source": "/planner", "destination": "https://mbny-core.vercel.app/planner" },
+    { "source": "/planner/:path*", "destination": "https://mbny-core.vercel.app/planner/:path*" },
+    { "source": "/_next/:path*", "destination": "https://mbny-core.vercel.app/_next/:path*" },
+    { "source": "/:path*", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ]
+}

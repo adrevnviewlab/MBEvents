@@ -28,6 +28,7 @@ import {
 } from '@/lib/content';
 import { Button, Field, Label } from '@/components/site/ui';
 import { SpringChoice } from '@/components/site/motion';
+import { normalizeEventType, normalizeGuests, submitLead, type LeadInput } from '@/lib/leads';
 
 const STEPS = ['celebrate', 'place', 'guests', 'include', 'contact'] as const;
 type Step = (typeof STEPS)[number];
@@ -591,11 +592,32 @@ export function BuildMyEventWizard({
         .filter(Boolean)
         .join('\n'),
     };
-    console.log('[MB Events] Build My Event inquiry', payload);
-    await new Promise((r) => setTimeout(r, 600));
-    localStorage.removeItem(DRAFT_KEY);
-    setSubmitting(false);
-    setSent(true);
+    const sourceMap: Record<LeadSource, LeadInput['source']> = {
+      website_builder: 'builder', date_check: 'availability', venue_finder: 'venue',
+      contact_form: 'contact', experience: 'builder', service: 'builder',
+    };
+    const priorityMap: Record<string, NonNullable<LeadInput['priorities']>[number]> = {
+      entertainment: 'Music', 'lighting-production': 'Lighting', 'photo-experiences': 'Photos',
+      'photography-video': 'Video', 'specialty-dancers': 'Dancing',
+      'event-planning': 'Everything', 'specialty-extras': 'Guest Experience',
+    };
+    try {
+      await submitLead({
+        source: sourceMap[payload.source], name: payload.firstName, email: payload.email,
+        phone: payload.phone, eventType: normalizeEventType(payload.eventType),
+        eventDate: payload.eventDate, guestCount: normalizeGuests(payload.guestCount),
+        location: payload.venueName, venueStatus: form.whereMode === 'have' ? 'selected' : form.whereMode === 'need' ? 'need_venue' : 'deciding',
+        priorities: [...new Set(payload.services.map((service) => priorityMap[service]).filter((priority): priority is NonNullable<LeadInput['priorities']>[number] => !!priority))],
+        contactMethod: form.reach.includes('email') && !form.reach.includes('call') ? 'email' : form.reach.includes('call') && !form.reach.includes('email') ? 'phone' : 'either',
+        notes: [payload.experienceId && `Experience: ${payload.experienceId}`, payload.message].filter(Boolean).join('\n').slice(0, 2000),
+      });
+      localStorage.removeItem(DRAFT_KEY);
+      setSent(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'We could not send your request. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const stepEase = [0.22, 1, 0.36, 1] as const;

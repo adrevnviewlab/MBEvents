@@ -3,21 +3,29 @@ import { CircleCheck } from 'lucide-react';
 import { brand, faqs, M } from '@/lib/content';
 import { Button, Field, SectionEyebrow } from '@/components/site/ui';
 import { PageHero, SiteShell, useSiteFunnels } from '@/components/site/Layout';
+import { submitLead } from '@/lib/leads';
 
 function Inner() {
   const { openBuilder, openDate } = useSiteFunnels();
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
   const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' });
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.email || !form.message) return;
     setSubmitting(true);
-    console.log('[MB Events] Contact form', { ...form, source: 'contact_form' });
-    await new Promise((r) => setTimeout(r, 600));
-    setSubmitting(false);
-    setSent(true);
+    setError('');
+    try {
+      await submitLead({ source: 'contact', name: form.name.trim(), email: form.email.trim(),
+        phone: form.phone.trim(), eventType: 'Other', notes: form.message.trim() });
+      setSent(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'We could not send your message. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -102,6 +110,7 @@ function Inner() {
                 <Button type="submit" variant="red" testId="button-contact-submit" disabled={submitting} showArrow={!submitting}>
                   {submitting ? 'Sending…' : 'Send message'}
                 </Button>
+                {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
               </form>
             )}
           </div>

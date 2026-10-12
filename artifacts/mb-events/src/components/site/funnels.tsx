@@ -1,7 +1,8 @@
 ﻿import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, CalendarDays, CircleCheck, Pin, X } from 'lucide-react';
-import { eventTypes, venues, type EventTypeValue, type LeadSource } from '@/lib/content';
+import { eventTypes, venues, type EventTypeValue } from '@/lib/content';
 import { Button, Field, Label } from '@/components/site/ui';
+import { normalizeEventType, submitLead } from '@/lib/leads';
 
 export { BuildMyEventWizard } from '@/components/site/builder';
 export type { BuilderPayload } from '@/components/site/builder';
@@ -52,16 +53,16 @@ const dateStepMeta: Record<DateStep, { label: string; title: string; sub: string
   date: {
     label: 'Date',
     title: 'Is your night open?',
-    sub: 'Pick a date â€” weâ€™ll check the calendar. No commitment yet.',
+    sub: 'Pick a date — we’ll check the calendar. No commitment yet.',
   },
   type: {
     label: 'Celebrate',
     title: 'What are you celebrating?',
-    sub: 'Tap the one that fits â€” weâ€™ll tailor the check from here.',
+    sub: 'Tap the one that fits — we’ll tailor the check from here.',
   },
   contact: {
     label: 'Contact',
-    title: 'Almost done â€” where should we reply?',
+    title: 'Almost done — where should we reply?',
     sub: 'An MB Event Specialist will confirm availability shortly.',
   },
 };
@@ -74,8 +75,9 @@ export function CheckMyDateModal({
   onContinueBuild?: (opts: { selectedType: EventTypeValue; eventDate: string }) => void;
 }) {
   const [step, setStep] = useState(0);
-  const [phase, setPhase] = useState<'form' | 'checking' | 'done'>('form');
+  const [phase, setPhase] = useState<'form' | 'done'>('form');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -85,12 +87,6 @@ export function CheckMyDateModal({
     eventType: '' as EventTypeValue | '',
   });
   const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (phase !== 'checking') return;
-    const t = setTimeout(() => setPhase('done'), 1600);
-    return () => clearTimeout(t);
-  }, [phase]);
 
   useEffect(() => () => {
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
@@ -108,7 +104,7 @@ export function CheckMyDateModal({
   const next = () => {
     setError('');
     if (current === 'date' && !form.eventDate) {
-      setError('Pick a date so we can check the calendar â€” a best guess is fine.');
+      setError('Pick a date so we can check the calendar — a best guess is fine.');
       return;
     }
     if (current === 'type' && !form.eventType) {
@@ -118,15 +114,27 @@ export function CheckMyDateModal({
     setStep((s) => Math.min(s + 1, DATE_STEPS.length - 1));
   };
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError('');
     if (!form.firstName || !form.phone || !form.eventDate || !form.eventType) {
       setError('Add your name and phone so we can confirm availability.');
       return;
     }
-    console.log('[MB Events] Check My Date', { ...form, source: 'date_check' as LeadSource });
-    setPhase('checking');
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await submitLead({
+        source: 'availability', name: [form.firstName, form.lastName].filter(Boolean).join(' '),
+        email: form.email.trim(), phone: form.phone.trim(),
+        eventType: normalizeEventType(form.eventType), eventDate: form.eventDate,
+      });
+      setPhase('done');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'We could not send your request. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -137,11 +145,10 @@ export function CheckMyDateModal({
             <div className="min-w-0">
               <p className="font-mono text-[10px] uppercase tracking-[.22em] text-[var(--mb-champagne)]">
                 Check my date
-                {phase === 'form' ? (current === 'contact' ? ' Â· Almost done' : ` Â· ${step + 1} of ${DATE_STEPS.length}`) : ''}
+                {phase === 'form' ? (current === 'contact' ? ' · Almost done' : ` · ${step + 1} of ${DATE_STEPS.length}`) : ''}
               </p>
               <h2 className="mt-1 font-display text-[1.85rem] leading-none text-[var(--mb-ivory)] sm:text-3xl">
                 {phase === 'form' && meta.title}
-                {phase === 'checking' && 'Checkingâ€¦'}
                 {phase === 'done' && 'Request received'}
               </h2>
             </div>
@@ -158,22 +165,13 @@ export function CheckMyDateModal({
           )}
         </div>
 
-        {phase === 'checking' && (
-          <div className="flex min-h-[360px] flex-col items-center justify-center px-8 py-16 text-center animate-rise">
-            <div className="mb-6 h-12 w-12 animate-pulse rounded-full border-2 border-[var(--mb-champagne)] border-t-[var(--mb-ivory)]" />
-            <p className="font-mono text-[10px] uppercase tracking-[.2em] text-[var(--mb-champagne)]">Hold tight</p>
-            <h3 className="mt-3 font-display text-4xl text-[var(--mb-ivory)]">Weâ€™re checking your dateâ€¦</h3>
-            <p className="mt-4 max-w-sm text-sm leading-6 text-[var(--mb-muted)]">Looking at the calendar and production load for {form.eventDate}.</p>
-          </div>
-        )}
-
         {phase === 'done' && (
           <div className="flex min-h-[360px] flex-col items-center justify-center px-8 py-16 text-center animate-rise">
             <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[var(--mb-champagne)] text-[var(--mb-ink)]">
               <CircleCheck size={38} />
             </div>
             <p className="font-mono text-[10px] uppercase tracking-[.2em] text-[var(--mb-champagne)]">Request received</p>
-            <h3 className="mt-3 max-w-md font-display text-4xl leading-[1.02] text-[var(--mb-ivory)]">Weâ€™ll confirm availability shortly.</h3>
+            <h3 className="mt-3 max-w-md font-display text-4xl leading-[1.02] text-[var(--mb-ivory)]">We’ll confirm availability shortly.</h3>
             <p className="mt-5 max-w-sm text-sm leading-7 text-[var(--mb-muted)]">
               An MB Event Specialist will reach out shortly about {form.eventDate}. Want to keep shaping the night while you wait?
             </p>
@@ -296,10 +294,10 @@ export function CheckMyDateModal({
                 type="submit"
                 variant="red"
                 testId={current === 'contact' ? 'button-submit-date' : 'button-date-next'}
-                disabled={current !== 'contact' && !canContinueDate()}
+                disabled={submitting || (current !== 'contact' && !canContinueDate())}
                 className="min-h-[48px] min-w-[8.5rem]"
               >
-                {current === 'contact' ? 'Check availability' : 'Continue'}
+                {submitting ? 'Sending…' : current === 'contact' ? 'Check availability' : 'Continue'}
               </Button>
             </div>
           </form>
@@ -337,7 +335,7 @@ export function FindVenueModal({ onClose, onRequest }: { onClose: () => void; on
               data-testid="input-venue-search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search Long Island venuesâ€¦"
+              placeholder="Search Long Island venues…"
               className="h-12 w-full border border-[var(--mb-line-strong)] bg-[var(--mb-ink)]/40 pl-10 pr-4 text-sm text-[var(--mb-ivory)] outline-none placeholder:text-[var(--mb-muted)] focus:border-[var(--mb-champagne)]"
             />
           </div>
@@ -346,7 +344,7 @@ export function FindVenueModal({ onClose, onRequest }: { onClose: () => void; on
           {filtered.length === 0 && (
             <div className="border border-dashed border-[var(--mb-line)] px-6 py-12 text-center">
               <p className="font-display text-2xl text-[var(--mb-ivory)]">No matches yet</p>
-              <p className="mt-2 text-sm text-[var(--mb-muted)]">Tell us what youâ€™re looking for â€” weâ€™ll help match a room.</p>
+              <p className="mt-2 text-sm text-[var(--mb-muted)]">Tell us what you’re looking for — we’ll help match a room.</p>
               <Button onClick={() => onRequest(query || 'Looking for a venue')} variant="red" testId="button-venue-empty-request" className="mt-6">
                 Request venue help
               </Button>
@@ -364,9 +362,9 @@ export function FindVenueModal({ onClose, onRequest }: { onClose: () => void; on
               <div className="flex flex-1 flex-col justify-center py-3 pr-4">
                 <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[var(--mb-champagne)]">{v.area}</p>
                 <h3 className="mt-1 font-display text-2xl text-[var(--mb-ivory)]">{v.name}</h3>
-                <p className="mt-1 text-xs text-[var(--mb-muted)]">{v.capacity} guests Â· {v.vibe}</p>
+                <p className="mt-1 text-xs text-[var(--mb-muted)]">{v.capacity} guests · {v.vibe}</p>
                 <span className="mt-2 text-[10px] font-extrabold uppercase tracking-[.14em] text-[var(--mb-champagne)] opacity-0 transition-opacity group-hover:opacity-100">
-                  Request info â†’
+                  Request info →
                 </span>
               </div>
             </button>

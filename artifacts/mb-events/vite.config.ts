@@ -66,6 +66,9 @@ export default defineConfig({
     strictPort: true,
     host: '0.0.0.0',
     allowedHosts: true,
+    proxy: Object.fromEntries(
+      ['/api', '/admin', '/planner', '/_next'].map((route) => [route, { target: 'http://127.0.0.1:8081', changeOrigin: false }]),
+    ),
     fs: {
       strict: true,
     },

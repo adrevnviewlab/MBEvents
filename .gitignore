@@ -53,3 +53,11 @@ Thumbs.db
 artifacts/mb-events/public/media/_4k_src/
 artifacts/mb-events/public/media/_img_src/
 artifacts/mb-events/public/media/_preview_check/
+
+# MB backend build and local secrets
+**/.next/
+**/.env*
+**/next-env.d.ts
+**/.pglite*/
+*.local.md
+*.local

@@ -163,7 +163,15 @@ export function SpringCard({
     py.set(0.5);
   }
 
-  const Overlay = href ? (
+  const Overlay = href?.startsWith('/planner') ? (
+    <a
+      href={href}
+      data-testid={testId}
+      className="absolute inset-0 z-20 rounded-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mb-champagne)]"
+    >
+      <span className="sr-only">{label ?? 'Open'}</span>
+    </a>
+  ) : href ? (
     <Link
       href={href}
       data-testid={testId}

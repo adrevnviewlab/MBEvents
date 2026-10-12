@@ -14,7 +14,7 @@ function Inner() {
             <em className="text-[var(--mb-champagne)]">in motion.</em>
           </>
         }
-        subtitle="4K production looks — sparkler glow, wedding recaps, haze and lasers, packed dance floors, and warm ballroom uplighting. Named recaps are from real MB nights."
+        subtitle="Production looks — sparkler glow, wedding recaps, haze and lasers, packed dance floors, and warm ballroom uplighting. Named recaps are from real MB nights."
         image={`${M}sparkler-entrance-poster.jpg`}
       />
       <section className="bg-[var(--mb-charcoal)] px-5 py-20 text-[var(--mb-ivory)] sm:px-8 lg:px-12 lg:py-28">
