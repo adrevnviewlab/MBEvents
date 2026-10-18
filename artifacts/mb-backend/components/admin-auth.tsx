@@ -5,7 +5,7 @@ import { api } from "@/components/planner/ui";
 
 export function AdminLogin() {
   const [mode, setMode] = useState<"password" | "mfa" | "recover" | "reset">("password");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState("admin");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [challenge, setChallenge] = useState("");
@@ -68,10 +68,20 @@ export function AdminLogin() {
         </a>
         <h1>Admin</h1>
         <p className="pl-intro">
-          {mode === "mfa" ? "Enter the code from your authenticator app, or a recovery code." : mode === "recover" ? "We'll email a reset link if this account has a password." : mode === "reset" ? "Choose a new password of at least 10 characters." : "Sign in to manage leads and client planners."}
+          {mode === "mfa" ? "Enter the code from your authenticator app, or a recovery code." : mode === "recover" ? "We'll email a reset link if this account has a password." : mode === "reset" ? "Choose a new password of at least 10 characters." : "Enter admin and sign in — no password needed."}
         </p>
-        {mode !== "mfa" && mode !== "reset" && <label className="pl-field"><span>Email</span><input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} /></label>}
-        {(mode === "password" || mode === "reset") && <label className="pl-field"><span>Password</span><input type="password" autoComplete={mode === "reset" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} /></label>}
+        {mode !== "mfa" && mode !== "reset" && (
+          <label className="pl-field">
+            <span>Username</span>
+            <input type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin" />
+          </label>
+        )}
+        {mode === "reset" && (
+          <label className="pl-field">
+            <span>Password</span>
+            <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </label>
+        )}
         {mode === "mfa" && <label className="pl-field"><span>Code</span><input inputMode="text" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} /></label>}
         {notice && <p className="pl-intro" role="status">{notice}</p>}
         {error && <p className="pl-warn" role="alert">{error}</p>}

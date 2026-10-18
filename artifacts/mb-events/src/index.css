@@ -373,7 +373,10 @@
       radial-gradient(ellipse 40% 35% at 80% 60%, rgba(180, 196, 220, 0.05), transparent 65%);
   }
 
-  .mb-site > * {
+  /* Keep in-flow content above the ::before veil. Do not target .fixed —
+     that rule wins over Tailwind and breaks header/sticky/modals (dialogs
+     were rendering ~12kpx down the page as position:relative). */
+  .mb-site > *:not(.fixed) {
     position: relative;
     z-index: 1;
   }

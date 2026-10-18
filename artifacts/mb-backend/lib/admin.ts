@@ -57,7 +57,8 @@ export async function getActor(): Promise<Actor | null> {
 }
 
 async function credentialTag(email: string) {
-  if (isOwner(email)) return env.MB_ADMIN_PASSWORD ? (await sha256(`owner:${env.MB_ADMIN_PASSWORD}`)).slice(0, 24) : "";
+  // Always return a stable tag — empty owner password still needs a non-empty session credential.
+  if (isOwner(email)) return (await sha256(`owner:${env.MB_ADMIN_PASSWORD ?? ""}`)).slice(0, 24);
   const staff = await env.DB!.prepare("SELECT password_hash FROM users WHERE email = ?").bind(email).first<{ password_hash: string | null }>();
   const hash = staff?.password_hash ?? (await env.DB!.prepare("SELECT password_hash FROM admin_users WHERE email = ?").bind(email).first<{ password_hash: string }>())?.password_hash;
   return hash ? (await sha256(`staff:${hash}`)).slice(0, 24) : "";
@@ -126,7 +127,7 @@ export async function checkAdminLogin(rawEmail: string, password: string) {
   const email = rawEmail.trim().toLowerCase();
   const invalid = new PlannerError("That email and password don't match.", 401);
   if (devAuthOpen()) return email || localActor().email;
-  if (!email || !password) throw invalid;
+  if (!email) throw invalid;
 
   const lock = await db.prepare("SELECT failures, locked_until FROM admin_login_failures WHERE email = ?").bind(email).first<{ failures: number; locked_until: string | null }>();
   if (lock?.locked_until && lock.locked_until > new Date().toISOString()) throw new PlannerError("Too many attempts. Try again in 15 minutes.", 429);
@@ -134,8 +135,11 @@ export async function checkAdminLogin(rawEmail: string, password: string) {
   let ok = false;
   if (isOwner(email)) {
     const expected = env.MB_ADMIN_PASSWORD ?? "";
-    ok = expected.length >= 8 && (await sha256(password)) === (await sha256(expected));
+    // Empty MB_ADMIN_PASSWORD = passwordless owner (username only).
+    if (expected.length === 0) ok = password.length === 0;
+    else ok = expected.length >= 8 && (await sha256(password)) === (await sha256(expected));
   } else {
+    if (!password) throw invalid;
     const staff = await db.prepare("SELECT password_hash, disabled_at FROM users WHERE email = ?").bind(email).first<{ password_hash: string | null; disabled_at: string | null }>();
     const hash = staff?.password_hash ?? (await db.prepare("SELECT password_hash FROM admin_users WHERE email = ?").bind(email).first<{ password_hash: string }>())?.password_hash;
     ok = !!hash && (await verifyPassword(password, hash));
