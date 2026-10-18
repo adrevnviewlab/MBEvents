@@ -20,6 +20,14 @@ const RESET_MINUTES = 30;
 
 const ownerEmail = () => env.MB_ADMIN_EMAIL?.trim().toLowerCase() || "";
 
+/** Accept "admin" as shorthand for the configured owner email. */
+function resolveLoginEmail(raw: string) {
+  const email = raw.trim().toLowerCase();
+  if (!email) return "";
+  if (email === "admin") return ownerEmail() || "admin@mb.local";
+  return email;
+}
+
 export function isOwner(email: string) {
   return !!ownerEmail() && email.toLowerCase() === ownerEmail();
 }
@@ -124,7 +132,7 @@ export async function checkAdminLogin(rawEmail: string, password: string) {
   const { PlannerError } = await import("@/lib/planner-server");
   const db = env.DB;
   if (!db) throw new PlannerError("The database is not configured.", 503);
-  const email = rawEmail.trim().toLowerCase();
+  const email = resolveLoginEmail(rawEmail);
   const invalid = new PlannerError("That email and password don't match.", 401);
   if (devAuthOpen()) return email || localActor().email;
   if (!email) throw invalid;
