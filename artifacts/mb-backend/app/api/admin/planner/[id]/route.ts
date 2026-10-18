@@ -1,9 +1,12 @@
 import { z } from "zod";
-import { adminDataSchema, clientSections, hashPassword, randomCode, type ClientSection } from "@/lib/planner";
+import { audit } from "@/lib/audit";
+import { applyPlanningTemplate, clientVisibleAdmin, getPlanningTemplate, planningPatch } from "@/lib/planning-templates";
+import { adminDataSchema, autoCheck, clientSections, guestAccessToken, guestRequestPath, hashPassword, randomCode, type AdminData, type ClientSection } from "@/lib/planner";
 import { notifyClient } from "@/lib/notify";
-import { db, eventExtras, fail, keepApprovedGuestSongs, parseEvent, PlannerError, readJson, saveAdminWithAutoCheck, saveSection, syncGuestSong, type EventRow } from "@/lib/planner-server";
+import { clientDeadlines, clientMoney, db, ensureGuestToken, eventExtras, fail, guestAccessFields, keepApprovedGuestSongs, parseEvent, PlannerError, readJson, saveAdminWithAutoCheck, saveEvent, saveSection, syncGuestSong, type EventRow } from "@/lib/planner-server";
+import { fileStore } from "@/lib/storage";
 import { requireAdmin } from "@/lib/admin";
-import { publicOrigin } from "@/lib/request-origin";
+import { clientIp, publicOrigin } from "@/lib/request-origin";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -16,17 +19,27 @@ async function load(id: string) {
 
 export async function GET(_request: Request, { params }: Params) {
   try {
-    await requireAdmin();
+    await requireAdmin(_request, "events.read");
     const event = await load((await params).id);
+    await ensureGuestToken(event.row);
     const extras = await eventExtras(event.row.id);
+    const [budget, deadlines] = await Promise.all([
+      clientMoney(event.row.event_id, event.admin),
+      clientDeadlines(event.row.event_id),
+    ]);
     return Response.json({
       id: event.row.id,
+      // Booking / calendar / operations rows use events.id; planner portal uses planner_events.id.
+      eventId: event.row.event_id,
       code: event.row.code,
       guestCode: event.row.guest_code,
       guestPassword: event.row.guest_password,
+      ...guestAccessFields(event.row),
       leadId: event.row.lead_id,
       data: event.data,
       admin: event.admin,
+      budget: { ...budget, clientBudget: event.data.details.clientBudget ?? "" },
+      deadlines,
       ...extras,
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
@@ -41,11 +54,12 @@ const patchSchema = z.object({
   request: z.object({ id: z.string().uuid(), status: z.enum(["pending", "approved", "declined"]) }).optional(),
   resetPassword: z.literal(true).optional(),
   resetGuest: z.literal(true).optional(),
+  applyTemplate: z.string().uuid().optional(),
 }).strict();
 
 export async function PATCH(request: Request, { params }: Params) {
   try {
-    const email = await requireAdmin(request);
+    const email = await requireAdmin(request, "events.write");
     const event = await load((await params).id);
     const parsed = patchSchema.safeParse(await readJson(request));
     if (!parsed.success) throw new PlannerError("Invalid details.");
@@ -63,6 +77,20 @@ export async function PATCH(request: Request, { params }: Params) {
       const payments = body.admin.payments.map((p) => online.get(p.id) ?? p);
       for (const pay of online.values()) if (!payments.some((p) => p.id === pay.id)) payments.push(pay);
       await saveAdminWithAutoCheck(event, { ...body.admin, documents, payments });
+      const nextAdmin = { ...body.admin, documents, payments } as AdminData;
+      const beforeVisible = clientVisibleAdmin(event.admin);
+      const afterVisible = clientVisibleAdmin(nextAdmin);
+      if (JSON.stringify(beforeVisible) !== JSON.stringify(afterVisible)) {
+        await audit({
+          actorEmail: email,
+          action: "planning_content_updated",
+          entity: "events",
+          subjectId: event.row.id,
+          ip: clientIp(request),
+          before: beforeVisible,
+          after: afterVisible,
+        });
+      }
       const newlySent = documents.filter((d) => d.status === "sent" && event.admin.documents.find((o) => o.id === d.id)?.status !== "sent");
       for (const doc of newlySent) {
         await notifyClient(publicOrigin(request), event.data.details.email, `Please review and sign: ${doc.title}`, [`MB Events shared "${doc.title}" with you. Please review and sign it in your planner.`], "Documents");
@@ -75,7 +103,36 @@ export async function PATCH(request: Request, { params }: Params) {
       const value = clientSections[section].safeParse(body.value);
       if (!value.success) throw new PlannerError("Invalid section details.");
       const next = section === "songs" ? await keepApprovedGuestSongs(event.row.id, event.data.songs, value.data as typeof event.data.songs) : value.data;
+      const before = event.data[section];
       await saveSection(event, section, next as never);
+      await audit({
+        actorEmail: email,
+        action: "planning_content_updated",
+        entity: "events",
+        subjectId: event.row.id,
+        ip: clientIp(request),
+        before: { [section]: before },
+        after: { [section]: next },
+      });
+    }
+    if (body.applyTemplate) {
+      const template = await getPlanningTemplate(body.applyTemplate);
+      if (!template) throw new PlannerError("Template not found.", 404);
+      const applied = applyPlanningTemplate(event.data, template);
+      const ticked = autoCheck(applied, event.admin);
+      const patch = planningPatch(event.data, ticked ?? applied);
+      if (Object.keys(patch).length) {
+        await saveEvent(event.row.id, { data: patch });
+        await audit({
+          actorEmail: email,
+          action: "planning_template_applied",
+          entity: "events",
+          subjectId: event.row.id,
+          ip: clientIp(request),
+          before: { checklist: event.data.checklist, timeline: event.data.timeline, dances: event.data.forms.dances },
+          after: patch,
+        });
+      }
     }
     if (body.request) {
       await db().prepare("UPDATE planner_guest_requests SET status = ? WHERE id = ? AND event_id = ?").bind(body.request.status, body.request.id, event.row.id).run();
@@ -91,9 +148,12 @@ export async function PATCH(request: Request, { params }: Params) {
     }
     if (body.resetGuest) {
       const guestPassword = randomCode(6);
+      const guestToken = guestAccessToken();
       result.guestPassword = guestPassword;
+      result.guestToken = guestToken;
+      result.guestPath = guestRequestPath(guestToken);
       await db().batch([
-        db().prepare("UPDATE planner_events SET guest_password = ? WHERE id = ?").bind(guestPassword, event.row.id),
+        db().prepare("UPDATE planner_events SET guest_password = ?, guest_access_token = ? WHERE id = ?").bind(guestPassword, guestToken, event.row.id),
         db().prepare("DELETE FROM planner_sessions WHERE event_id = ? AND kind = 'guest'").bind(event.row.id),
       ]);
     }
@@ -107,15 +167,17 @@ export async function PATCH(request: Request, { params }: Params) {
 
 export async function DELETE(request: Request, { params }: Params) {
   try {
-    const email = await requireAdmin(request);
+    const email = await requireAdmin(request, "events.delete");
     const event = await load((await params).id);
     const id = event.row.id;
+    const eventId = event.row.event_id;
+    if (eventId) {
+      const files = await db().prepare("SELECT storage_key FROM stored_files WHERE event_id = ?").bind(eventId).all<{ storage_key: string }>();
+      for (const file of files.results) await fileStore().delete(file.storage_key).catch(() => {});
+    }
     await db().batch([
-      db().prepare("DELETE FROM planner_sessions WHERE event_id = ?").bind(id),
-      db().prepare("DELETE FROM planner_guest_requests WHERE event_id = ?").bind(id),
-      db().prepare("DELETE FROM planner_messages WHERE event_id = ?").bind(id),
-      db().prepare("DELETE FROM planner_events WHERE id = ?").bind(id),
-      db().prepare("INSERT INTO admin_audit (id, created_at, actor_email, action, subject_id, before_value, after_value) VALUES (?, ?, ?, 'planner_deleted', ?, ?, NULL)")
+      eventId ? db().prepare("DELETE FROM events WHERE id = ?").bind(eventId) : db().prepare("DELETE FROM planner_events WHERE id = ?").bind(id),
+      db().prepare("INSERT INTO admin_audit (id, created_at, actor_email, action, entity, subject_id, before_value, after_value) VALUES (?, ?, ?, 'planner_deleted', 'events', ?, ?, NULL)")
         .bind(crypto.randomUUID(), new Date().toISOString(), email, id, JSON.stringify({ code: event.row.code })),
     ]);
     return Response.json({ ok: true });

@@ -2,16 +2,36 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-export async function api<T = { ok: true }>(path: string, init?: { method?: string; body?: unknown }): Promise<T> {
+export async function api<T = { ok: true }>(path: string, init?: { method?: string; body?: unknown; signal?: AbortSignal }): Promise<T> {
   const res = await fetch(path, {
     method: init?.method ?? (init?.body ? "POST" : "GET"),
     headers: init?.body ? { "Content-Type": "application/json" } : undefined,
     body: init?.body ? JSON.stringify(init.body) : undefined,
     credentials: "same-origin",
+    signal: init?.signal,
   });
   const json = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok) throw Object.assign(new Error(json.error || "Something went wrong."), { status: res.status });
   return json;
+}
+
+// Cleanup abort is ignored. A timeout becomes a message so a loading screen cannot spin forever.
+export function beginTimed(task: (signal: AbortSignal) => Promise<void>, ms = 12000) {
+  const stop = new AbortController();
+  const timeout = new AbortController();
+  const timer = setTimeout(() => timeout.abort(new DOMException("The request timed out.", "TimeoutError")), ms);
+  const signal = AbortSignal.any([stop.signal, timeout.signal]);
+  const done = task(signal).finally(() => clearTimeout(timer));
+  return { done, cancel: () => stop.abort() };
+}
+
+export function loadFailure(error: unknown, signal?: AbortSignal) {
+  if ((error as Error).name === "AbortError") {
+    return (signal?.reason as { name?: string } | undefined)?.name === "TimeoutError"
+      ? "This is taking too long. Check your connection and try again."
+      : null;
+  }
+  return (error as Error).message || "Something went wrong.";
 }
 
 export const newId = () => Math.random().toString(36).slice(2, 12);
@@ -25,11 +45,11 @@ export function Field({ label, children, wide }: { label: string; children: Reac
   );
 }
 
-export function Text({ value, onChange, placeholder, type = "text", area }: { value: string; onChange: (v: string) => void; placeholder?: string; type?: string; area?: boolean }) {
+export function Text({ value, onChange, placeholder, type = "text", area, disabled }: { value: string; onChange: (v: string) => void; placeholder?: string; type?: string; area?: boolean; disabled?: boolean }) {
   return area ? (
-    <textarea value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} rows={4} />
+    <textarea value={value} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(e.target.value)} rows={4} />
   ) : (
-    <input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+    <input type={type} value={value} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
   );
 }
 
@@ -75,6 +95,16 @@ export function useListOps<T extends { id: string }>(items: T[], set: (next: T[]
       if (index < 0 || target < 0 || target >= items.length) return;
       const next = [...items];
       [next[index], next[target]] = [next[target], next[index]];
+      set(next);
+    },
+    reorder: (fromId: string, toId: string) => {
+      if (fromId === toId) return;
+      const from = items.findIndex((i) => i.id === fromId);
+      const to = items.findIndex((i) => i.id === toId);
+      if (from < 0 || to < 0) return;
+      const next = [...items];
+      const [row] = next.splice(from, 1);
+      next.splice(to, 0, row);
       set(next);
     },
   };

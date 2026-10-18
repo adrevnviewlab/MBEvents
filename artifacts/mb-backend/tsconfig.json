@@ -47,6 +47,7 @@
     "cloudflare-env.d.ts",
     "_old_app",
     "_orig_media",
+    "scripts",
     "dist"
   ]
 }

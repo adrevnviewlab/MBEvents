@@ -1,23 +1,33 @@
 import { z } from "zod";
-import { leadStages, requireAdmin } from "@/lib/admin";
-import { db, fail, PlannerError, readJson } from "@/lib/planner-server";
+import { requireActor } from "@/lib/admin";
+import { parseBudgetDollars, updateLead } from "@/lib/crm";
+import { fail, readJson } from "@/lib/planner-server";
+import { parseInput } from "@/lib/validate";
 
-const schema = z.object({ stage: z.enum(leadStages), notes: z.string().max(5000) }).strict();
+const schema = z.object({
+  stage: z.string().trim().min(1).max(80).optional(),
+  notes: z.string().max(5000).optional(),
+  assigneeId: z.string().uuid().nullable().optional(),
+  consultationAt: z.string().max(40).nullable().optional(),
+  budget: z.string().max(20).optional(),
+  lostReason: z.string().max(2000).nullable().optional(),
+  venueName: z.string().trim().max(200).nullable().optional(),
+}).strict();
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const email = await requireAdmin(request);
+    const actor = await requireActor(request, "leads.write");
     const { id } = await params;
-    if (!/^[0-9a-f-]{36}$/.test(id)) throw new PlannerError("Invalid lead.");
-    const parsed = schema.safeParse(await readJson(request));
-    if (!parsed.success) throw new PlannerError("Invalid details.");
-    const previous = await db().prepare("SELECT stage, notes FROM leads WHERE id = ?").bind(id).first<{ stage: string; notes: string | null }>();
-    if (!previous) throw new PlannerError("Lead not found.", 404);
-    await db().batch([
-      db().prepare("UPDATE leads SET stage = ?, notes = ?, updated_at = now() WHERE id = ?").bind(parsed.data.stage, parsed.data.notes, id),
-      db().prepare("INSERT INTO admin_audit (id, actor_email, action, subject_id, before_value, after_value) VALUES (?, ?, 'lead_updated', ?, ?, ?)")
-        .bind(crypto.randomUUID(), email, id, JSON.stringify(previous), JSON.stringify(parsed.data)),
-    ]);
+    const body = parseInput(schema, await readJson(request));
+    await updateLead(id, {
+      stage: body.stage,
+      notes: body.notes,
+      assigneeId: body.assigneeId,
+      consultationAt: body.consultationAt,
+      budgetCents: body.budget !== undefined ? parseBudgetDollars(body.budget) : undefined,
+      lostReason: body.lostReason,
+      venueName: body.venueName,
+    }, actor);
     return Response.json({ ok: true });
   } catch (error) {
     return fail(error);

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { inferTimelineKind, timelineKinds } from "@/lib/timeline";
 
 // ---------- Shared shapes ----------
 
@@ -24,14 +25,28 @@ export const detailsSchema = z.object({
   venuePhone: short,
   ceremonyLocation: short,
   notes: long,
+  clientBudget: z.string().max(40).default(""),
 });
 
 export const checklistSchema = z.array(z.object({ id, text: z.string().max(300), due: short, done: z.boolean() })).max(300);
 export const guestsSchema = z.array(z.object({ id, name: z.string().max(200), party: z.coerce.number().int().min(1).max(50).default(1), rsvp: z.enum(["Pending", "Yes", "No"]), table: short })).max(2000);
 export const songKinds = ["Must play", "Play if possible", "Do not play", "Special moment"] as const;
 export const songsSchema = z.array(z.object({ id, title: z.string().max(200), artist: short, kind: z.enum(songKinds), moment: short, note: short })).max(1000);
-export const timelineSchema = z.array(z.object({ id, time: short, what: z.string().max(300), song: short, who: short })).max(200);
-export const teamSchema = z.array(z.object({ id, name: z.string().max(200), role: short, company: short, phone: short, email: short })).max(100);
+/** Single run-of-show record shared by admin, client portal, and staff briefs. */
+export const timelineSchema = z.array(z.object({
+  id,
+  time: short,
+  endTime: short.optional().default(""),
+  what: z.string().max(300),
+  song: short,
+  who: short,
+  kind: z.enum(timelineKinds).optional().default("custom"),
+  notes: z.string().max(2000).optional().default(""),
+  staffId: z.string().max(60).optional(),
+  vendorId: z.string().max(60).optional(),
+  clientVisible: z.boolean().optional().default(true),
+})).max(200);
+export const teamSchema = z.array(z.object({ id, name: z.string().max(200), role: short, company: short, phone: short, email: short, vendorId: z.string().max(60).optional() })).max(100);
 
 export const formsSchema = z.object({
   introductions: z.array(z.object({ id, names: z.string().max(300), role: short, song: short })).max(60).default([]),
@@ -75,7 +90,32 @@ export type PlannerData = {
   team: z.infer<typeof teamSchema>;
   forms: z.infer<typeof formsSchema>;
   evaluation?: z.infer<typeof evaluationSchema>;
+  blocks?: string[];
 };
+
+export type PlanningTemplateBody = {
+  checklist: { text: string; due: string }[];
+  timeline: { time: string; what: string; endTime?: string; kind?: string }[];
+  dances: { moment: string }[];
+  blocks: string[];
+};
+
+export const namedEventTypes = ["Wedding", "Sweet 16", "Quinceañera", "Bar / Bat Mitzvah", "Birthday", "Corporate", "School Event", "Private Party", "Other"] as const;
+
+export const planningBlockIds = ["details", "forms", "songs", "requests", "timeline", "checklist", "guests", "team", "documents", "payments", "messages", "evaluation"] as const;
+
+export function checklistProgress(checklist: { done: boolean }[]) {
+  const total = checklist.length;
+  const done = checklist.filter((item) => item.done).length;
+  return { done, total, ratio: total === 0 ? 0 : done / total };
+}
+
+export function countdownDays(eventDate: string | null | undefined) {
+  if (!eventDate || !/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) return null;
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  return Math.ceil((new Date(`${eventDate}T12:00:00`).getTime() - today.getTime()) / 864e5);
+}
 
 export const lineItemSchema = z.object({ id, description: z.string().max(200), qty: z.coerce.number().min(0).max(1000), price: z.coerce.number().min(0).max(1_000_000) });
 export const paymentSchema = z.object({
@@ -115,32 +155,54 @@ export type AdminData = z.infer<typeof adminDataSchema>;
 
 export const uid = () => crypto.randomUUID().slice(0, 12);
 
-const timelineTemplates: Record<string, [string, string][]> = {
+type TimelineSeed = [string, string, string?]; // start, what, optional end
+
+const timelineTemplates: Record<string, TimelineSeed[]> = {
   Wedding: [
-    ["4:30 PM", "Ceremony music begins"], ["5:00 PM", "Ceremony"], ["5:30 PM", "Cocktail hour"],
+    ["3:00 PM", "Load-in & setup", "4:00 PM"], ["4:00 PM", "Soundcheck", "4:20 PM"],
+    ["4:30 PM", "Ceremony music begins"], ["5:00 PM", "Ceremony", "5:30 PM"], ["5:30 PM", "Cocktail hour", "6:30 PM"],
     ["6:30 PM", "Grand entrance & introductions"], ["6:40 PM", "First dance"], ["6:45 PM", "Welcome & blessing"],
-    ["7:00 PM", "Dinner"], ["7:45 PM", "Toasts"], ["8:00 PM", "Parent dances"], ["8:15 PM", "Open dancing"],
+    ["7:00 PM", "Dinner", "7:45 PM"], ["7:45 PM", "Toasts"], ["8:00 PM", "Parent dances"], ["8:15 PM", "Open dancing"],
     ["9:30 PM", "Cake cutting"], ["9:45 PM", "Bouquet & garter"], ["10:45 PM", "Last dance"], ["11:00 PM", "Send-off"],
+    ["11:15 PM", "Breakdown & pack-out", "12:00 AM"],
   ],
   "Sweet 16": [
+    ["5:30 PM", "Load-in & setup", "6:30 PM"], ["6:30 PM", "Soundcheck"],
     ["7:00 PM", "Guest arrival & cocktail hour"], ["8:00 PM", "Court introductions"], ["8:10 PM", "Grand entrance"],
     ["8:15 PM", "Father-daughter dance"], ["8:30 PM", "Dinner"], ["9:00 PM", "Candle-lighting ceremony"],
     ["9:30 PM", "Open dancing"], ["10:30 PM", "Cake & happy birthday"], ["11:45 PM", "Last dance"],
+    ["12:00 AM", "Breakdown"],
   ],
   "Bar / Bat Mitzvah": [
+    ["4:30 PM", "Load-in & setup"], ["5:30 PM", "Soundcheck"],
     ["6:00 PM", "Cocktail hour"], ["7:00 PM", "Grand entrance"], ["7:05 PM", "Hora"], ["7:20 PM", "Motzi & kiddush"],
     ["7:30 PM", "Dinner"], ["8:15 PM", "Candle-lighting ceremony"], ["8:45 PM", "Open dancing & games"], ["10:45 PM", "Last dance"],
+    ["11:00 PM", "Breakdown"],
   ],
   Corporate: [
+    ["4:00 PM", "Load-in & setup"], ["5:00 PM", "Soundcheck"],
     ["6:00 PM", "Arrival & networking"], ["7:00 PM", "Welcome remarks"], ["7:15 PM", "Dinner"], ["8:00 PM", "Awards / presentations"],
-    ["8:45 PM", "Open dancing"], ["10:30 PM", "Close"],
+    ["8:45 PM", "Open dancing"], ["10:30 PM", "Close"], ["10:45 PM", "Breakdown"],
   ],
 };
 
 export function defaultTimeline(eventType: string) {
   const key = Object.keys(timelineTemplates).find((k) => eventType.toLowerCase().includes(k.toLowerCase().split(" ")[0])) ?? "";
-  const rows = timelineTemplates[key] ?? [["6:00 PM", "Guest arrival"], ["7:00 PM", "Grand entrance"], ["7:30 PM", "Dinner"], ["8:30 PM", "Open dancing"], ["10:45 PM", "Last dance"]];
-  return rows.map(([time, what]) => ({ id: uid(), time, what, song: "", who: "" }));
+  const rows = timelineTemplates[key] ?? [
+    ["4:00 PM", "Load-in & setup"], ["5:00 PM", "Soundcheck"], ["6:00 PM", "Guest arrival"],
+    ["7:00 PM", "Grand entrance"], ["7:30 PM", "Dinner"], ["8:30 PM", "Open dancing"], ["10:45 PM", "Last dance"], ["11:00 PM", "Breakdown"],
+  ];
+  return rows.map(([time, what, endTime]) => ({
+    id: uid(),
+    time,
+    endTime: endTime || "",
+    what,
+    song: "",
+    who: "",
+    kind: inferTimelineKind(what),
+    notes: "",
+    clientVisible: true,
+  }));
 }
 
 const defaultDances: Record<string, string[]> = {
@@ -164,16 +226,33 @@ export function defaultChecklist() {
   ].map(([text, due]) => ({ id: uid(), text, due, done: false }));
 }
 
-export function newPlannerData(input: { clientNames: string; email: string; phone: string; eventType: string; eventDate: string; venueName: string; guestCount: string }): PlannerData {
-  return {
+export function newPlannerData(input: { clientNames: string; email: string; phone: string; eventType: string; eventDate: string; venueName: string; guestCount: string }, template?: PlanningTemplateBody | null): PlannerData {
+  const dances = template
+    ? template.dances.map((item) => ({ id: uid(), moment: item.moment, song: "", artist: "", notes: "" }))
+    : defaultDanceList(input.eventType);
+  const data: PlannerData = {
     details: detailsSchema.parse({ ...input }),
-    checklist: defaultChecklist(),
+    checklist: template ? template.checklist.map((item) => ({ id: uid(), text: item.text, due: item.due, done: false })) : defaultChecklist(),
     guests: [],
     songs: [],
-    timeline: defaultTimeline(input.eventType),
+    timeline: template
+      ? template.timeline.map((item) => ({
+        id: uid(),
+        time: item.time,
+        endTime: item.endTime || "",
+        what: item.what,
+        song: "",
+        who: "",
+        kind: inferTimelineKind(item.kind || item.what),
+        notes: "",
+        clientVisible: true,
+      }))
+      : defaultTimeline(input.eventType),
     team: [{ id: uid(), name: "MB Events", role: "DJ, MC, lighting & production", company: "Michael Bryan Events", phone: "(855) 627-6863", email: "" }],
-    forms: formsSchema.parse({ dances: defaultDanceList(input.eventType) }),
+    forms: formsSchema.parse({ dances }),
   };
+  if (template?.blocks.length) data.blocks = [...template.blocks];
+  return data;
 }
 
 export function newAdminData(): AdminData {
@@ -276,6 +355,18 @@ const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export function randomCode(length: number) {
   const bytes = crypto.getRandomValues(new Uint8Array(length));
   return Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join("");
+}
+
+// Capability secret for a guest song-request link. Not a password, and not derived from one.
+export function guestAccessToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+}
+
+export function guestRequestPath(token: string) {
+  return `/planner/guest?t=${encodeURIComponent(token)}`;
 }
 
 const toHex = (buf: ArrayBuffer | Uint8Array) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");

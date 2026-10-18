@@ -1,7 +1,7 @@
 import { notifyMb } from "@/lib/notify";
 import { limits } from "@/lib/rate-limit";
 import { publicOrigin } from "@/lib/request-origin";
-import { assertWriteOrigin, db, fail, PlannerError, readJson, sessionEvent } from "@/lib/planner-server";
+import { assertBodyEvent, assertWriteOrigin, db, fail, PlannerError, readJson, sessionEvent } from "@/lib/planner-server";
 
 export async function POST(request: Request) {
   try {
@@ -9,6 +9,7 @@ export async function POST(request: Request) {
     await limits.message(request);
     const event = await sessionEvent(request, "client");
     const body = (await readJson(request)) as { body?: unknown };
+    assertBodyEvent(event, body);
     const text = String(body.body ?? "").trim();
     if (!text || text.length > 4000) throw new PlannerError("Write a message up to 4,000 characters.");
     const now = new Date().toISOString();

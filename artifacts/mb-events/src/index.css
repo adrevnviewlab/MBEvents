@@ -62,23 +62,28 @@
   --app-font-sans: 'Manrope', sans-serif;
   --app-font-serif: 'DM Serif Display', Georgia, serif;
   --app-font-mono: 'Space Mono', monospace;
-  --radius: 0.35rem;
-  --shadow-soft: 0 22px 50px rgba(0, 0, 0, .45);
+  --radius: 0.85rem;
+  --shadow-soft: 0 24px 60px rgba(0, 0, 0, 0.35);
+  --mb-glass: rgba(242, 235, 224, 0.06);
+  --mb-glass-strong: rgba(242, 235, 224, 0.1);
+  --mb-glass-border: rgba(242, 235, 224, 0.14);
+  --mb-glass-highlight: rgba(255, 255, 255, 0.14);
+  --mb-blur: 22px;
 
-  /* Brand tokens — premium dark hospitality */
-  --mb-ink: #0c0b0a;
-  --mb-charcoal: #141211;
-  --mb-surface: #1a1816;
-  --mb-elevated: #221f1c;
-  --mb-ivory: #f2ebe0;
-  --mb-ivory-soft: rgba(242, 235, 224, 0.78);
-  --mb-muted: #9a948a;
-  --mb-champagne: #c9b07a;
-  --mb-champagne-deep: #a8945e;
+  /* Brand tokens — premium dark glass hospitality */
+  --mb-ink: #09090b;
+  --mb-charcoal: #111114;
+  --mb-surface: rgba(255, 255, 255, 0.045);
+  --mb-elevated: rgba(255, 255, 255, 0.075);
+  --mb-ivory: #f5f0e8;
+  --mb-ivory-soft: rgba(245, 240, 232, 0.78);
+  --mb-muted: #a39e96;
+  --mb-champagne: #d4bc86;
+  --mb-champagne-deep: #b89a5f;
   --mb-crimson: #c4454a;
   --mb-crimson-deep: #9e3438;
-  --mb-line: rgba(242, 235, 224, 0.12);
-  --mb-line-strong: rgba(242, 235, 224, 0.22);
+  --mb-line: rgba(245, 240, 232, 0.1);
+  --mb-line-strong: rgba(245, 240, 232, 0.18);
 }
 
 .dark {
@@ -114,10 +119,12 @@
   }
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    background-color: var(--mb-ink);
     background-image:
-      radial-gradient(ellipse 120% 80% at 10% -20%, rgba(201, 176, 122, 0.07), transparent 50%),
-      radial-gradient(ellipse 90% 60% at 100% 0%, rgba(201, 176, 122, 0.05), transparent 45%),
-      linear-gradient(180deg, #0c0b0a 0%, #12100e 50%, #0c0b0a 100%);
+      radial-gradient(ellipse 90% 70% at 12% -10%, rgba(212, 188, 134, 0.16), transparent 55%),
+      radial-gradient(ellipse 70% 55% at 92% 8%, rgba(180, 196, 220, 0.08), transparent 50%),
+      radial-gradient(ellipse 60% 45% at 50% 100%, rgba(212, 188, 134, 0.07), transparent 55%),
+      linear-gradient(180deg, #0a0a0c 0%, #121218 42%, #0a0a0c 100%);
     background-attachment: fixed;
     min-height: 100%;
     -webkit-tap-highlight-color: transparent;
@@ -148,27 +155,31 @@
 
 @layer components {
   /*
-   * "Mass" card border — a layered, beveled edge that reads as a physical,
-   * weighted panel: an inner highlight, an inset dark seam, a contact shadow,
-   * and a deep drop shadow. A gold rim lights up on hover.
+   * Frosted glass panel — premium hospitality surface.
+   * Soft specular edge, translucent fill, champagne rim on hover.
    */
   .mb-card {
     position: relative;
-    border-radius: 6px;
-    border: 1px solid var(--mb-line-strong);
+    border-radius: 18px;
+    border: 1px solid var(--mb-glass-border);
+    background:
+      linear-gradient(165deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.02) 42%, rgba(255, 255, 255, 0.04) 100%),
+      var(--mb-glass);
+    backdrop-filter: blur(var(--mb-blur)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--mb-blur)) saturate(140%);
     box-shadow:
-      inset 0 1px 0 rgba(242, 235, 224, 0.10),
-      inset 0 0 0 1px rgba(0, 0, 0, 0.35),
-      0 2px 4px rgba(0, 0, 0, 0.5),
-      0 20px 44px -14px rgba(0, 0, 0, 0.75);
+      inset 0 1px 0 var(--mb-glass-highlight),
+      0 1px 0 rgba(255, 255, 255, 0.04),
+      0 18px 48px -20px rgba(0, 0, 0, 0.55);
     transition:
       box-shadow 0.45s cubic-bezier(0.2, 0.75, 0.2, 1),
-      border-color 0.45s cubic-bezier(0.2, 0.75, 0.2, 1);
+      border-color 0.45s cubic-bezier(0.2, 0.75, 0.2, 1),
+      background 0.45s ease,
+      transform 0.45s cubic-bezier(0.2, 0.75, 0.2, 1);
     will-change: transform;
     backface-visibility: hidden;
   }
 
-  /* Gold rim, revealed on hover — masked to just the 1px border. */
   .mb-card::before {
     content: '';
     position: absolute;
@@ -177,10 +188,10 @@
     border-radius: inherit;
     padding: 1px;
     background: linear-gradient(
-      140deg,
-      rgba(201, 176, 122, 0) 0%,
-      rgba(201, 176, 122, 0.05) 45%,
-      rgba(201, 176, 122, 0.6) 100%
+      145deg,
+      rgba(255, 255, 255, 0.35) 0%,
+      rgba(212, 188, 134, 0.08) 40%,
+      rgba(212, 188, 134, 0.55) 100%
     );
     -webkit-mask:
       linear-gradient(#000 0 0) content-box,
@@ -193,17 +204,45 @@
   }
 
   .mb-card:hover {
-    border-color: rgba(201, 176, 122, 0.45);
+    border-color: rgba(212, 188, 134, 0.42);
+    background:
+      linear-gradient(165deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 42%, rgba(255, 255, 255, 0.06) 100%),
+      var(--mb-glass-strong);
     box-shadow:
-      inset 0 1px 0 rgba(242, 235, 224, 0.16),
-      inset 0 0 0 1px rgba(0, 0, 0, 0.4),
-      0 6px 14px rgba(0, 0, 0, 0.55),
-      0 36px 74px -16px rgba(0, 0, 0, 0.85),
-      0 0 0 1px rgba(201, 176, 122, 0.22);
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      0 10px 28px rgba(0, 0, 0, 0.35),
+      0 36px 70px -24px rgba(0, 0, 0, 0.65),
+      0 0 0 1px rgba(212, 188, 134, 0.16);
   }
 
   .mb-card:hover::before {
     opacity: 1;
+  }
+
+  .mb-glass {
+    border: 1px solid var(--mb-glass-border);
+    background: var(--mb-glass);
+    backdrop-filter: blur(var(--mb-blur)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--mb-blur)) saturate(140%);
+    box-shadow: inset 0 1px 0 var(--mb-glass-highlight);
+  }
+
+  .mb-glass-strong {
+    border: 1px solid var(--mb-glass-border);
+    background: var(--mb-glass-strong);
+    backdrop-filter: blur(28px) saturate(150%);
+    -webkit-backdrop-filter: blur(28px) saturate(150%);
+    box-shadow:
+      inset 0 1px 0 var(--mb-glass-highlight),
+      0 20px 50px -24px rgba(0, 0, 0, 0.55);
+  }
+
+  .mb-band {
+    background: transparent;
+  }
+
+  .mb-band-soft {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 40%, rgba(255, 255, 255, 0.02));
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -317,19 +356,26 @@
   .font-display { font-family: var(--app-font-serif); }
   .font-mono { font-family: var(--app-font-mono); }
   .text-balance { text-wrap: balance; }
-  .grain::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    opacity: .045;
-    z-index: 50;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
-  }
   .mb-veil {
     background:
-      linear-gradient(90deg, rgba(12, 11, 10, 0.92) 0%, rgba(12, 11, 10, 0.55) 45%, rgba(12, 11, 10, 0.2) 100%),
-      linear-gradient(0deg, rgba(12, 11, 10, 0.92) 0%, transparent 42%, rgba(12, 11, 10, 0.4) 100%);
+      linear-gradient(105deg, rgba(9, 9, 11, 0.72) 0%, rgba(9, 9, 11, 0.28) 52%, rgba(9, 9, 11, 0.08) 100%),
+      linear-gradient(0deg, rgba(9, 9, 11, 0.7) 0%, transparent 48%, rgba(9, 9, 11, 0.22) 100%);
+  }
+
+  .mb-site::before {
+    content: '';
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 50% 40% at 20% 20%, rgba(212, 188, 134, 0.08), transparent 70%),
+      radial-gradient(ellipse 40% 35% at 80% 60%, rgba(180, 196, 220, 0.05), transparent 65%);
+  }
+
+  .mb-site > * {
+    position: relative;
+    z-index: 1;
   }
 }
 

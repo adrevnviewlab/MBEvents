@@ -1,10 +1,11 @@
 import type { Sql } from "postgres";
+import { assertDatabaseUrl } from "@/lib/config";
 
 // Postgres (Supabase) behind the small statement API the app uses:
 //   env.DB.prepare(sql).bind(...args).first() / .all() / .run(), and env.DB.batch([...]).
 // SQL uses `?` placeholders; they are rewritten to $1..$n. Dates, timestamps, and jsonb come
 // back as text (YYYY-MM-DD, ISO 8601, raw JSON) so callers handle plain strings.
-// Local dev and tests can use DATABASE_URL=pglite:<dir> (in-process Postgres, dev dependency).
+// Automated tests use DATABASE_URL=pglite:memory. The dev server and production use a Postgres URL.
 
 type Row = Record<string, unknown>;
 type Args = unknown[];
@@ -63,9 +64,8 @@ function postgresDriver(url: string): Driver {
   };
 }
 
-// Local dev only. `pglite:memory` (recommended) is an in-memory database that applies
-// db/migrations on startup and survives hot reloads; it resets when the dev server restarts.
-// `pglite:<dir>` persists to disk, but PGlite can corrupt the folder if the process is killed.
+// Test databases only. `pglite:memory` applies migrations on startup and survives hot reloads;
+// it resets when that test process exits. The dev server must use Postgres instead.
 function pgliteDriver(dataDir: string): Driver {
   type Lite = {
     query: (sql: string, args?: Args) => Promise<{ rows: Row[]; affectedRows?: number }>;
@@ -115,7 +115,14 @@ function pgliteDriver(dataDir: string): Driver {
 }
 
 export class Statement {
-  constructor(private driver: Driver, readonly sql: string, readonly args: Args = []) {}
+  private driver: Driver;
+  readonly sql: string;
+  readonly args: Args;
+  constructor(driver: Driver, sql: string, args: Args = []) {
+    this.driver = driver;
+    this.sql = sql;
+    this.args = args;
+  }
 
   bind(...args: unknown[]) {
     return new Statement(this.driver, this.sql, args);
@@ -138,7 +145,10 @@ export class Statement {
 }
 
 export class Database {
-  constructor(private driver: Driver) {}
+  private driver: Driver;
+  constructor(driver: Driver) {
+    this.driver = driver;
+  }
 
   prepare(sql: string) {
     return new Statement(this.driver, sql);
@@ -161,6 +171,7 @@ export function getDatabase(): Database | undefined {
   if (database) return database;
   const url = databaseUrl();
   if (!url) return undefined;
+  assertDatabaseUrl(url);
   database = new Database(url.startsWith("pglite:") ? pgliteDriver(url.slice("pglite:".length)) : postgresDriver(url));
   return database;
 }

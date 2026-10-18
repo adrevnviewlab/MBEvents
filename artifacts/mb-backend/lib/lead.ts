@@ -20,6 +20,17 @@ export const leadSchema = z.object({
   contactMethod: z.enum(["phone", "email", "either"]).default("either"),
   campaign: z.string().trim().max(120).optional().nullable(),
   notes: z.string().trim().max(2000).optional().nullable(),
+  venueId: z.union([z.literal(""), z.string().uuid()]).optional().nullable(),
+  vendorId: z.union([z.literal(""), z.string().uuid()]).optional().nullable(),
+  referredBy: z.string().trim().max(200).optional().nullable(),
+  venueName: z.string().trim().max(200).optional().nullable(),
+  services: z.array(z.string().trim().min(1).max(80)).max(24).default([]),
+  budgetCents: z.number().int().nonnegative().max(2_000_000_000).optional().nullable(),
+  budget: z.union([
+    z.null(),
+    z.number().nonnegative().max(20_000_000),
+    z.string().trim().regex(/^\d{1,8}(\.\d{1,2})?$/),
+  ]).optional(),
   website: z.string().max(0).optional(),
 }).superRefine((lead, context) => {
   if (["builder", "availability", "venue"].includes(lead.source) && !lead.phone) {

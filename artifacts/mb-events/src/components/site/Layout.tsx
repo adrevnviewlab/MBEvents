@@ -4,6 +4,7 @@ import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { A, brand, type EventTypeValue, type ExperienceId, type LeadSource } from '@/lib/content';
 import { BuildMyEventWizard, CheckMyDateModal, FindVenueModal } from '@/components/site/funnels';
+import { captureLeadAttribution } from '@/lib/leads';
 
 type BuilderState = {
   source: LeadSource;
@@ -11,6 +12,8 @@ type BuilderState = {
   experienceId?: ExperienceId;
   serviceIds?: string[];
   venueName?: string;
+  venueId?: string;
+  vendorId?: string;
   eventDate?: string;
   eventDateUnknown?: boolean;
   note?: string;
@@ -23,6 +26,8 @@ type SiteFunnels = {
     experienceId?: ExperienceId;
     serviceIds?: string[];
     venueName?: string;
+    venueId?: string;
+    vendorId?: string;
     eventDate?: string;
     eventDateUnknown?: boolean;
     note?: string;
@@ -41,16 +46,16 @@ export function useSiteFunnels() {
 
 const navLinks = [
   { href: '/experiences', label: 'Experiences' },
+  { href: '/services', label: 'Services' },
   { href: '/venues', label: 'Venues' },
   { href: '/gallery', label: 'Real Events' },
-  { href: '/about', label: 'About Us' },
+  { href: '/contact', label: 'Contact' },
 ];
 
 const secondaryLinks = [
   { href: '/weddings', label: 'Weddings' },
   { href: '/sweet-16', label: 'Sweet 16s' },
-  { href: '/services', label: 'Services' },
-  { href: '/contact', label: 'Contact' },
+  { href: '/about', label: 'About Us' },
   { href: '/partners', label: 'Partners' },
   { href: '/stories/rob-krista', label: 'Featured story' },
 ];
@@ -76,15 +81,15 @@ export function SiteHeader({
   }, []);
 
   const headerBase = solid
-    ? 'relative border-b border-[var(--mb-line)] bg-[var(--mb-ink)]'
-    : `fixed inset-x-0 top-0 transition-[background-color,border-color,backdrop-filter] duration-500 ${
+    ? 'relative border-b border-white/10 bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-2xl'
+    : `fixed inset-x-0 top-0 transition-[background-color,border-color,backdrop-filter,box-shadow] duration-500 ${
         scrolled
-          ? 'border-b border-[var(--mb-line)] bg-[var(--mb-ink)]/80 backdrop-blur-xl'
-          : 'border-b border-transparent bg-transparent'
+          ? 'border-b border-white/12 bg-white/[0.06] shadow-[0_10px_40px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.14)] backdrop-blur-2xl'
+          : 'border-b border-white/[0.06] bg-white/[0.03] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-xl'
       }`;
 
   return (
-    <header className={`${headerBase} z-40`}>
+    <header className={`${headerBase} z-40 supports-[backdrop-filter]:bg-white/[0.04]`}>
       <div className={`mx-auto flex max-w-7xl items-center justify-between px-5 transition-[padding] duration-500 sm:px-8 lg:px-12 ${scrolled && !solid ? 'py-3' : 'py-5'}`}>
         <Link data-testid="link-home-logo" href="/" className="flex items-center">
           <img src={`${A}mb-events-logo.png`} alt={brand.name} className={`w-auto object-contain transition-[height] duration-500 ${scrolled && !solid ? 'h-8 sm:h-9' : 'h-10 sm:h-12'}`} />
@@ -111,7 +116,7 @@ export function SiteHeader({
             whileHover={{ y: -2, scale: 1.04 }}
             whileTap={{ scale: 0.95 }}
             transition={CTA_SPRING}
-            className="rounded-full bg-[var(--mb-champagne)] px-5 py-2.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-[var(--mb-ink)] transition-colors hover:bg-[var(--mb-ivory)]"
+            className="rounded-full border border-white/20 bg-white/12 px-5 py-2.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-[var(--mb-ivory)] shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-md transition-colors hover:border-[var(--mb-champagne)]/50 hover:bg-[var(--mb-champagne)] hover:text-[var(--mb-ink)]"
           >
             Check my date
           </motion.button>
@@ -130,7 +135,7 @@ export function SiteHeader({
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 260, damping: 30, mass: 0.9 }}
-            className="overflow-hidden border-t border-[var(--mb-line)] bg-[var(--mb-charcoal)]/98 backdrop-blur-md xl:hidden"
+            className="overflow-hidden border-t border-white/10 bg-white/[0.05] backdrop-blur-2xl xl:hidden"
           >
             <motion.div
               variants={{ open: { transition: { staggerChildren: 0.05, delayChildren: 0.05 } } }}
@@ -167,7 +172,7 @@ export function SiteHeader({
 
 export function SiteFooter() {
   return (
-    <footer className="bg-[var(--mb-ink)] px-5 py-12 text-[var(--mb-ivory)] sm:px-8 lg:px-12">
+    <footer className="border-t border-[var(--mb-glass-border)] bg-[var(--mb-ink)]/40 px-5 py-12 text-[var(--mb-ivory)] backdrop-blur-2xl sm:px-8 lg:px-12">
       <div className="mx-auto grid max-w-7xl gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div>
           <img src={`${A}mb-events-logo.png`} alt={brand.name} className="h-12 w-auto" />
@@ -235,11 +240,11 @@ export function PageHero({
   children?: ReactNode;
 }) {
   return (
-    <section className="relative overflow-hidden bg-[var(--mb-ink)] px-5 pb-16 pt-32 text-[var(--mb-ivory)] sm:px-8 sm:pb-20 sm:pt-36 lg:px-12">
+    <section className="relative overflow-hidden px-5 pb-16 pt-32 text-[var(--mb-ivory)] sm:px-8 sm:pb-20 sm:pt-36 lg:px-12">
       {image && (
         <div className="absolute inset-0" aria-hidden>
-          <img src={image} alt="" className="h-full w-full object-cover opacity-35" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[var(--mb-ink)] via-[var(--mb-ink)]/85 to-[var(--mb-ink)]/55" />
+          <img src={image} alt="" className="h-full w-full object-cover opacity-40" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[var(--mb-ink)]/90 via-[var(--mb-ink)]/70 to-[var(--mb-ink)]/35 backdrop-blur-[2px]" />
         </div>
       )}
       <div className="relative mx-auto max-w-7xl">
@@ -260,6 +265,10 @@ export function SiteShell({ children, solidHeader = false }: { children: ReactNo
   const [dateCheck, setDateCheck] = useState(false);
   const [venueModal, setVenueModal] = useState(false);
 
+  useEffect(() => {
+    captureLeadAttribution();
+  }, []);
+
   const openBuilder: SiteFunnels['openBuilder'] = (opts = {}) => {
     setDateCheck(false);
     setVenueModal(false);
@@ -269,6 +278,8 @@ export function SiteShell({ children, solidHeader = false }: { children: ReactNo
       experienceId: opts.experienceId,
       serviceIds: opts.serviceIds,
       venueName: opts.venueName,
+      venueId: opts.venueId,
+      vendorId: opts.vendorId,
       eventDate: opts.eventDate,
       eventDateUnknown: opts.eventDateUnknown,
       note: opts.note,
@@ -287,7 +298,7 @@ export function SiteShell({ children, solidHeader = false }: { children: ReactNo
 
   return (
     <FunnelsContext.Provider value={{ openBuilder, openDate, openVenue }}>
-      <div className="grain min-h-screen overflow-x-hidden bg-[var(--mb-ink)]">
+      <div className="mb-site relative min-h-screen overflow-x-hidden bg-transparent">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-[var(--mb-champagne)] focus:px-4 focus:py-2 focus:text-[10px] focus:font-extrabold focus:uppercase focus:tracking-[.16em] focus:text-[var(--mb-ink)]"
@@ -302,7 +313,7 @@ export function SiteShell({ children, solidHeader = false }: { children: ReactNo
           initial={{ y: 80, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.15 }}
-          className="fixed inset-x-0 bottom-0 z-40 flex border-t border-[var(--mb-line)] bg-[var(--mb-ink)]/95 p-3 backdrop-blur-md xl:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 flex border-t border-[var(--mb-glass-border)] bg-[var(--mb-ink)]/55 p-3 backdrop-blur-2xl xl:hidden"
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         >
           <motion.button whileTap={{ scale: 0.96 }} data-testid="button-sticky-date" type="button" onClick={openDate} className="w-full rounded-full bg-[var(--mb-champagne)] py-3.5 text-[10px] font-extrabold uppercase tracking-[.14em] text-[var(--mb-ink)] transition-colors hover:bg-[var(--mb-ivory)]">
@@ -317,6 +328,8 @@ export function SiteShell({ children, solidHeader = false }: { children: ReactNo
             experienceId={builder.experienceId}
             initialServices={builder.serviceIds}
             initialVenue={builder.venueName}
+            initialVenueId={builder.venueId}
+            initialVendorId={builder.vendorId}
             initialDate={builder.eventDate}
             initialDateUnknown={builder.eventDateUnknown}
             initialNote={builder.note}
@@ -335,9 +348,9 @@ export function SiteShell({ children, solidHeader = false }: { children: ReactNo
         {venueModal && (
           <FindVenueModal
             onClose={() => setVenueModal(false)}
-            onRequest={(venueName) => {
+            onRequest={({ venueName, venueId }) => {
               setVenueModal(false);
-              openBuilder({ source: 'venue_finder', venueName });
+              openBuilder({ source: 'venue_finder', venueName, venueId });
             }}
           />
         )}

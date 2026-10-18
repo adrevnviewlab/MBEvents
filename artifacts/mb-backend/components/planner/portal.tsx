@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PlannerData } from "@/lib/planner";
-import { api } from "./ui";
+import { checklistProgress } from "@/lib/planner";
+import { api, beginTimed, loadFailure } from "./ui";
 import * as S from "./sections";
 
 const TABS = [
@@ -22,11 +23,33 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
+const TAB_BLOCK: Partial<Record<Tab, string>> = {
+  Details: "details",
+  "Planning form": "forms",
+  Music: "songs",
+  "Guest requests": "requests",
+  Timeline: "timeline",
+  Checklist: "checklist",
+  Guests: "guests",
+  Team: "team",
+  Documents: "documents",
+  Payments: "payments",
+  Messages: "messages",
+  Evaluation: "evaluation",
+};
+
+function visibleTabs(blocks: string[] | undefined) {
+  if (!blocks?.length) return TABS;
+  const allowed = new Set(blocks);
+  return TABS.filter(([name]) => name === "Overview" || allowed.has(TAB_BLOCK[name] ?? ""));
+}
+
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 export function Planner() {
   const [bundle, setBundle] = useState<S.Bundle | null>(null);
-  const [state, setState] = useState<"loading" | "login" | "ready">("loading");
+  const [state, setState] = useState<"loading" | "login" | "ready" | "error">("loading");
+  const [loadError, setLoadError] = useState("");
   const [tab, setTab] = useState<Tab>(() => {
     // Safe during SSR: the first paint is the loading screen either way.
     const t = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("tab");
@@ -37,20 +60,52 @@ export function Planner() {
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const inflight = useRef(0);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (signal?: AbortSignal) => {
+    const linked = typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("code")?.trim() ?? "";
+    const openLinked = async () => {
+      await api("/api/planner/login", { body: { code: linked } });
+      setBundle(await api<S.Bundle>("/api/planner", { signal }));
+      setState("ready");
+    };
     try {
-      setBundle(await api<S.Bundle>("/api/planner"));
+      const current = await api<S.Bundle>("/api/planner", { signal });
+      if (process.env.NODE_ENV === "development" && linked && current.code !== linked) {
+        await openLinked();
+        return;
+      }
+      setBundle(current);
       setState("ready");
     } catch (e) {
-      if ((e as { status?: number }).status === 401) setState("login");
-      else throw e;
+      if ((e as { status?: number }).status === 401) {
+        if (process.env.NODE_ENV === "development" && linked) {
+          try {
+            await openLinked();
+            return;
+          } catch {
+            setState("login");
+            return;
+          }
+        }
+        setState("login");
+        return;
+      }
+      const message = loadFailure(e, signal);
+      if (!message) return;
+      setLoadError(message);
+      setState("error");
     }
   }, []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch; state is set after the request resolves
-    reload().catch(() => setState("login"));
+  const start = useCallback(() => {
+    setLoadError("");
+    setState("loading");
+    return beginTimed((signal) => reload(signal));
   }, [reload]);
+
+  useEffect(() => {
+    const run = start();
+    return run.cancel;
+  }, [start]);
 
   // Keep the active section visible in the scrolling mobile menu.
   useEffect(() => {
@@ -95,7 +150,7 @@ export function Planner() {
     window.history.replaceState(null, "", url);
     window.scrollTo({ top: 0, behavior: "smooth" });
     if (t === "Messages" && bundle?.messages.some((m) => m.sender === "mb" && !m.read_at)) {
-      api("/api/planner/messages", { method: "PATCH" }).then(reload).catch(() => {});
+      api("/api/planner/messages", { method: "PATCH" }).then(() => reload()).catch(() => {});
     }
   };
 
@@ -106,17 +161,29 @@ export function Planner() {
   };
 
   if (state === "loading") return <div className="pl pl-center"><p className="pl-sub">Loading your planner...</p></div>;
+  if (state === "error") {
+    return (
+      <div className="pl pl-center">
+        <div className="pl-card pl-login">
+          <p className="pl-warn" role="alert">{loadError}</p>
+          <button className="pl-btn" onClick={() => start()}>Try again</button>
+        </div>
+      </div>
+    );
+  }
   if (state === "login" || !bundle) return <Login onDone={reload} />;
 
   const d = bundle.data.details;
-  const done = bundle.data.checklist.filter((c) => c.done).length;
-  const progress = bundle.data.checklist.length ? Math.round((done / bundle.data.checklist.length) * 100) : 0;
+  const progress = checklistProgress(bundle.data.checklist);
+  const percent = Math.round(progress.ratio * 100);
   const badges: Partial<Record<Tab, number>> = {
     Messages: bundle.messages.filter((m) => m.sender === "mb" && !m.read_at).length,
     Documents: bundle.admin.documents.filter((x) => x.status === "sent").length,
     "Guest requests": bundle.requests.filter((r) => r.status === "pending").length,
   };
-  const Current = TABS.find(([name]) => name === tab)![1];
+  const tabs = visibleTabs(bundle.data.blocks);
+  const active = tabs.some(([name]) => name === tab) ? tab : "Overview";
+  const Current = tabs.find(([name]) => name === active)?.[1] ?? tabs[0][1];
 
   return (
     <div className="pl">
@@ -130,13 +197,13 @@ export function Planner() {
           <div className="pl-k">MB Planner · {bundle.code}</div>
           <h1>{d.clientNames || "Your event"}</h1>
           <div className="pl-sub">{[d.eventType, d.eventDate && new Date(`${d.eventDate}T12:00:00`).toLocaleDateString("en-US", { dateStyle: "long" }), d.venueName].filter(Boolean).join(" · ")}</div>
-          <div className="pl-bar" aria-label={`Planning progress ${progress}%`}><i style={{ width: `${progress}%` }} /></div>
-          <div className="pl-sub">Planning progress {progress}%</div>
+          <div className="pl-bar" aria-label={`Planning progress ${percent}%`}><i style={{ width: `${percent}%` }} /></div>
+          <div className="pl-sub">Planning progress {progress.done} of {progress.total}</div>
         </header>
         <div className="pl-layout">
           <nav className="pl-nav no-print" aria-label="Planner sections">
-            {TABS.map(([name]) => (
-              <button key={name} className={name === tab ? "on" : ""} aria-current={name === tab ? "page" : undefined} onClick={() => go(name)}>
+            {tabs.map(([name]) => (
+              <button key={name} className={name === active ? "on" : ""} aria-current={name === active ? "page" : undefined} onClick={() => go(name)}>
                 {name}
                 {!!badges[name] && <b>{badges[name]}</b>}
               </button>
@@ -176,9 +243,9 @@ function Login({ onDone }: { onDone: () => Promise<void> }) {
       >
         <a className="pl-k" href="/">← MB Events</a>
         <h1>Client planner</h1>
-        <p className="pl-intro">Sign in with the event code and password MB sent you.</p>
+        <p className="pl-intro">{process.env.NODE_ENV === "development" ? "Enter the event code. No password is required on this local server." : "Sign in with the event code and password MB sent you."}</p>
         <label className="pl-field"><span>Event code</span><input value={code} autoComplete="username" placeholder="MB-XXXXXX" onChange={(e) => setCode(e.target.value)} /></label>
-        <label className="pl-field"><span>Password</span><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+        {process.env.NODE_ENV !== "development" && <label className="pl-field"><span>Password</span><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>}
         {error && <p className="pl-warn" role="alert">{error}</p>}
         <button className="pl-btn" disabled={busy}>{busy ? "Signing in..." : "Sign in"}</button>
         <p className="pl-sub">No login yet? <a href="/contact">Contact MB</a> or call (855) 627-6863.</p>

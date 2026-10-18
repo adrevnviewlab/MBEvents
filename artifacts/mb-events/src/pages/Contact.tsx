@@ -1,16 +1,23 @@
 import { useState, type FormEvent } from 'react';
 import { CircleCheck } from 'lucide-react';
 import { brand, faqs, M } from '@/lib/content';
-import { Button, Field, SectionEyebrow } from '@/components/site/ui';
+import { Button, Field, HoneypotField, SectionEyebrow } from '@/components/site/ui';
 import { PageHero, SiteShell, useSiteFunnels } from '@/components/site/Layout';
 import { submitLead } from '@/lib/leads';
+import { faqJsonLd, usePageMeta } from '@/lib/seo';
 
 function Inner() {
   const { openBuilder, openDate } = useSiteFunnels();
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', message: '', website: '' });
+  usePageMeta({
+    title: 'Contact',
+    description: `Reach ${brand.short} in Wantagh, NY. Start with a note, Build My Event, or Check My Date — an inquiry does not reserve a night.`,
+    path: '/contact',
+    jsonLd: faqJsonLd(faqs),
+  });
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -18,8 +25,15 @@ function Inner() {
     setSubmitting(true);
     setError('');
     try {
-      await submitLead({ source: 'contact', name: form.name.trim(), email: form.email.trim(),
-        phone: form.phone.trim(), eventType: 'Other', notes: form.message.trim() });
+      await submitLead({
+        source: 'contact',
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        eventType: 'Other',
+        notes: form.message.trim(),
+        website: form.website,
+      });
       setSent(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'We could not send your message. Please try again.');
@@ -90,8 +104,9 @@ function Inner() {
                 <p className="mt-3 max-w-sm text-sm text-[var(--mb-muted)]">We’ll get back within one business day.</p>
               </div>
             ) : (
-              <form onSubmit={submit} className="space-y-5">
+              <form onSubmit={submit} className="relative space-y-5">
                 <h3 className="font-display text-3xl text-[var(--mb-ivory)]">Send a note</h3>
+                <HoneypotField value={form.website} onChange={(v) => setForm((c) => ({ ...c, website: v }))} />
                 <Field label="Name" value={form.name} onChange={(v) => setForm((c) => ({ ...c, name: v }))} required testId="input-contact-name" />
                 <Field label="Email" type="email" value={form.email} onChange={(v) => setForm((c) => ({ ...c, email: v }))} required testId="input-contact-email" />
                 <Field label="Phone" type="tel" value={form.phone} onChange={(v) => setForm((c) => ({ ...c, phone: v }))} testId="input-contact-phone" />

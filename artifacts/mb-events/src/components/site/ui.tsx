@@ -33,7 +33,29 @@ export function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-2 h-12 w-full border border-[var(--mb-line-strong)] bg-[var(--mb-ink)]/40 px-4 text-sm text-[var(--mb-ivory)] outline-none placeholder:text-[var(--mb-muted)] focus:border-[var(--mb-champagne)] focus:ring-1 focus:ring-[var(--mb-champagne)]"
+        className="mt-2 h-12 w-full rounded-xl border border-[var(--mb-glass-border)] bg-[var(--mb-glass)] px-4 text-sm text-[var(--mb-ivory)] outline-none backdrop-blur-md placeholder:text-[var(--mb-muted)] focus:border-[var(--mb-champagne)] focus:ring-1 focus:ring-[var(--mb-champagne)]"
+      />
+    </label>
+  );
+}
+
+/** Visually hidden honeypot — leave empty. */
+export function HoneypotField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="absolute -left-[9999px] h-px w-px overflow-hidden" aria-hidden="true">
+      Website
+      <input
+        tabIndex={-1}
+        autoComplete="off"
+        name="website"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
       />
     </label>
   );
@@ -62,8 +84,8 @@ export function Button({
     dark: 'bg-[var(--mb-ivory)] text-[var(--mb-ink)] hover:bg-[var(--mb-champagne)] focus-visible:ring-[var(--mb-champagne)]',
     red: 'bg-[var(--mb-champagne)] text-[var(--mb-ink)] hover:bg-[var(--mb-ivory)] focus-visible:ring-[var(--mb-champagne)]',
     light: 'bg-[var(--mb-champagne)] text-[var(--mb-ink)] hover:bg-[var(--mb-ivory)]',
-    outline: 'border border-[var(--mb-ivory)]/45 text-[var(--mb-ivory)] hover:border-[var(--mb-champagne)] hover:text-[var(--mb-champagne)]',
-    ghost: 'border border-[var(--mb-line-strong)] text-[var(--mb-ivory)] hover:border-[var(--mb-champagne)] hover:text-[var(--mb-champagne)]',
+    outline: 'border border-[var(--mb-glass-border)] bg-[var(--mb-glass)] text-[var(--mb-ivory)] backdrop-blur-md hover:border-[var(--mb-champagne)] hover:bg-[var(--mb-glass-strong)] hover:text-[var(--mb-champagne)]',
+    ghost: 'border border-[var(--mb-glass-border)] bg-transparent text-[var(--mb-ivory)] hover:border-[var(--mb-champagne)] hover:bg-[var(--mb-glass)] hover:text-[var(--mb-champagne)]',
   } as const;
 
   return (

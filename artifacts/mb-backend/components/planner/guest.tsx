@@ -2,27 +2,44 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { musicLibrary } from "@/lib/music-db";
-import { api, fmtDate } from "./ui";
+import { api, beginTimed, fmtDate, loadFailure } from "./ui";
 
 type Info = { guestCode: string; eventType: string; clientNames: string; eventDate: string; open: boolean; requests: { title: string; artist: string; status: string }[] };
 
 export function GuestRequests() {
   const [info, setInfo] = useState<Info | null>(null);
-  const [state, setState] = useState<"loading" | "login" | "ready">("loading");
-  const load = useCallback(async () => {
+  const [state, setState] = useState<"loading" | "login" | "ready" | "error">("loading");
+  const [loadError, setLoadError] = useState("");
+  const load = useCallback(async (signal?: AbortSignal) => {
     const params = new URLSearchParams(window.location.search);
-    const linked = params.get("code")?.trim().toUpperCase();
-    const linkedPw = params.get("pw")?.trim();
-    const fetchInfo = () => api<Info>("/api/planner/guest/requests");
-    let next = await fetchInfo().catch(() => null);
-    // A link for a different event wins over an older guest session.
-    if (next && linked && linked !== next.guestCode) {
-      await api("/api/planner/guest/login", { method: "DELETE" }).catch(() => {});
+    const token = params.get("t")?.trim() ?? "";
+    const linked = params.get("code")?.trim().toUpperCase() ?? "";
+    const linkedPw = params.get("pw")?.trim() ?? "";
+    const quiet = async <T,>(request: Promise<T>) => request.catch((e: unknown) => {
+      const status = (e as { status?: number }).status;
+      if (status === 401 || status === 403) return null;
+      throw e;
+    });
+    const gt = params.get("gt")?.trim() ?? "";
+    const infoPath = `/api/planner/guest/requests${gt ? `?gt=${encodeURIComponent(gt)}` : ""}`;
+    const fetchInfo = () => quiet(api<Info>(infoPath, { signal }));
+    let next = await fetchInfo();
+    if (token) {
+      // The link is the source of truth, even when an older guest session exists.
+      if (next) await quiet(api("/api/planner/guest/login", { method: "DELETE", signal }));
+      next = await quiet(api("/api/planner/guest/login", { body: { token }, signal }).then(() => api<Info>("/api/planner/guest/requests", { signal })));
+    } else if (next && linked && linked !== next.guestCode) {
+      await quiet(api("/api/planner/guest/login", { method: "DELETE", signal }));
       next = null;
     }
-    // Links shared by the hosts carry the password, so guests skip the form.
-    if (!next && linked && linkedPw) {
-      next = await api("/api/planner/guest/login", { body: { code: linked, password: linkedPw } }).then(fetchInfo).catch(() => null);
+    // Older links put the guest password in the query string. Sign in, then drop it from the address bar.
+    if (!next && linked && (linkedPw || process.env.NODE_ENV === "development")) {
+      next = await quiet(api("/api/planner/guest/login", { body: { code: linked, password: linkedPw }, signal }).then(() => api<Info>(infoPath, { signal })));
+    }
+    if (next && linkedPw) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("pw");
+      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
     }
     if (next) {
       setInfo(next);
@@ -31,12 +48,38 @@ export function GuestRequests() {
       setState("login");
     }
   }, []);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch; state is set after the request resolves
-    load();
+
+  const start = useCallback(() => {
+    setLoadError("");
+    setState("loading");
+    return beginTimed(async (signal) => {
+      try {
+        await load(signal);
+      } catch (e) {
+        const message = loadFailure(e, signal);
+        if (!message) return;
+        setLoadError(message);
+        setState("error");
+      }
+    });
   }, [load]);
 
+  useEffect(() => {
+    const run = start();
+    return run.cancel;
+  }, [start]);
+
   if (state === "loading") return <div className="pl pl-center"><p className="pl-sub">Loading...</p></div>;
+  if (state === "error") {
+    return (
+      <div className="pl pl-center">
+        <div className="pl-card pl-login">
+          <p className="pl-warn" role="alert">{loadError}</p>
+          <button className="pl-btn" onClick={() => start()}>Try again</button>
+        </div>
+      </div>
+    );
+  }
   if (state === "login" || !info) return <GuestLogin onDone={load} />;
   return <GuestForm info={info} reload={load} />;
 }
@@ -66,9 +109,9 @@ function GuestLogin({ onDone }: { onDone: () => Promise<void> }) {
       >
         <a className="pl-k" href="/">← MB Events</a>
         <h1>Request a song</h1>
-        <p className="pl-intro">Enter the guest code and password from the hosts.</p>
+        <p className="pl-intro">{process.env.NODE_ENV === "development" ? "Enter the guest code. No password is required on this local server." : "Enter the guest code and password from the hosts."}</p>
         <label className="pl-field"><span>Guest code</span><input value={code} placeholder="G-XXXXXX" onChange={(e) => setCode(e.target.value)} /></label>
-        <label className="pl-field"><span>Password</span><input value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+        {process.env.NODE_ENV !== "development" && <label className="pl-field"><span>Password</span><input value={password} onChange={(e) => setPassword(e.target.value)} /></label>}
         {error && <p className="pl-warn" role="alert">{error}</p>}
         <button className="pl-btn" disabled={busy}>{busy ? "Checking..." : "Continue"}</button>
       </form>
@@ -108,7 +151,8 @@ function GuestForm({ info, reload }: { info: Info; reload: () => Promise<void> }
               setBusy(true);
               setMsg("");
               try {
-                await api("/api/planner/guest/requests", { body: { guestName, title, artist, note } });
+                const gt = new URLSearchParams(window.location.search).get("gt")?.trim() ?? "";
+                await api("/api/planner/guest/requests", { body: { guestName, title, artist, note, ...(gt ? { inviteToken: gt } : {}) } });
                 setTitle(""); setArtist(""); setNote("");
                 setMsg("Request sent! Add another anytime.");
                 await reload();

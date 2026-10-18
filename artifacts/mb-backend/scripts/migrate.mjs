@@ -1,6 +1,10 @@
 // Applies db/migrations/*.sql once each, in order, inside a transaction per file.
 // Runs before `next build` on Vercel; safe to re-run. Prefers a direct (non-pooled) connection.
 import { readdirSync, readFileSync } from "node:fs";
+import { missingNames, requiredTables, requiredViews } from "../db/schema.mjs";
+import { loadLocalEnv } from "./load-local-env.mjs";
+
+loadLocalEnv();
 
 const url =
   process.env.DATABASE_URL_UNPOOLED ||
@@ -11,6 +15,11 @@ const url =
 if (!url) {
   console.warn("[migrate] No DATABASE_URL / POSTGRES_URL set; skipping migrations.");
   process.exit(0);
+}
+
+if (process.env.NODE_ENV === "production" && url.startsWith("pglite:")) {
+  console.error("[migrate] Production cannot start with in-memory storage. Set DATABASE_URL to Postgres.");
+  process.exit(1);
 }
 
 // Preview builds (unmerged branches) must not change the production schema.
@@ -34,6 +43,9 @@ async function open() {
         await tx.query("INSERT INTO _migrations (name) VALUES ($1)", [name]);
       }),
       close: () => db.close(),
+      namesOf: async (kind) => (await db.query(
+        `SELECT table_name AS name FROM information_schema.${kind} WHERE table_schema = 'public'`,
+      )).rows.map((r) => r.name),
     };
   }
   const { default: postgres } = await import("postgres");
@@ -47,6 +59,9 @@ async function open() {
       await tx`INSERT INTO _migrations (name) VALUES (${name})`;
     }),
     close: () => sql.end(),
+    namesOf: async (kind) => (await sql.unsafe(
+      `SELECT table_name AS name FROM information_schema.${kind} WHERE table_schema = 'public'`,
+    )).map((r) => r.name),
   };
 }
 
@@ -59,4 +74,12 @@ for (const file of files) {
   console.log(`[migrate] applied ${file}`);
 }
 console.log("[migrate] database is up to date.");
+const tables = await db.namesOf("tables");
+const views = await db.namesOf("views");
+const missing = [...missingNames(tables, requiredTables), ...missingNames(views, requiredViews)];
+if (missing.length) {
+  console.error(`[migrate] schema is missing: ${missing.join(", ")}`);
+  await db.close();
+  process.exit(1);
+}
 await db.close();

@@ -1,10 +1,16 @@
 import { clientSections, type ClientSection } from "@/lib/planner";
-import { assertWriteOrigin, clientView, eventExtras, fail, keepApprovedGuestSongs, PlannerError, readJson, saveSection, sessionEvent } from "@/lib/planner-server";
+import { assertBodyEvent, assertWriteOrigin, clientDeadlines, clientMoney, clientView, ensureGuestToken, eventExtras, fail, keepApprovedGuestSongs, PlannerError, readJson, saveSection, sessionEvent } from "@/lib/planner-server";
 
 export async function GET(request: Request) {
   try {
     const event = await sessionEvent(request, "client");
-    return Response.json(clientView(event, await eventExtras(event.row.id)), { headers: { "Cache-Control": "no-store" } });
+    await ensureGuestToken(event.row);
+    const [extras, budget, deadlines] = await Promise.all([
+      eventExtras(event.row.id),
+      clientMoney(event.row.event_id, event.admin),
+      clientDeadlines(event.row.event_id),
+    ]);
+    return Response.json(clientView(event, extras, { budget, deadlines }), { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return fail(error);
   }
@@ -16,6 +22,7 @@ export async function PATCH(request: Request) {
     assertWriteOrigin(request);
     const event = await sessionEvent(request, "client");
     const body = (await readJson(request)) as { section?: string; value?: unknown };
+    assertBodyEvent(event, body);
     if (!body.section || !(body.section in clientSections)) throw new PlannerError("Unknown section.");
     const section = body.section as ClientSection;
     const parsed = clientSections[section].safeParse(body.value);

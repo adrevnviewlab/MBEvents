@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
-import { ADMIN_COOKIE, checkAdminLogin, createAdminSession, endAdminSession } from "@/lib/admin";
+import { ADMIN_COOKIE, checkAdminLogin, createAdminSession, endAdminSession, ensureOwnerUser, homeForEmail, startMfaChallenge } from "@/lib/admin";
+import { devAuthOpen } from "@/lib/config";
 import { sessionCookie } from "@/lib/planner";
 import { limits, pruneExpired } from "@/lib/rate-limit";
 import { assertWriteOrigin, fail, readJson } from "@/lib/planner-server";
@@ -10,9 +11,12 @@ export async function POST(request: Request) {
     await limits.adminLogin(request);
     const body = (await readJson(request)) as { email?: unknown; password?: unknown };
     const email = await checkAdminLogin(String(body.email ?? "").slice(0, 200), String(body.password ?? "").slice(0, 200));
-    const { token, maxAge } = await createAdminSession(email);
+    await ensureOwnerUser(email);
+    const challenge = devAuthOpen() ? null : await startMfaChallenge(email);
     await pruneExpired().catch(() => {});
-    return Response.json({ ok: true }, { headers: { "Set-Cookie": sessionCookie(request, ADMIN_COOKIE, token, maxAge) } });
+    if (challenge) return Response.json({ mfaRequired: true, challenge });
+    const { token, maxAge } = await createAdminSession(email);
+    return Response.json({ ok: true, home: await homeForEmail(email) }, { headers: { "Set-Cookie": sessionCookie(request, ADMIN_COOKIE, token, maxAge) } });
   } catch (error) {
     return fail(error);
   }

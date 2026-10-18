@@ -18,7 +18,7 @@ pnpm --filter @workspace/mb-backend run dev
 pnpm --filter @workspace/mb-events run dev
 ```
 
-For an isolated local database, set `DATABASE_URL=pglite:memory` in the backend terminal. For a persistent deployment, provide a PostgreSQL connection through `DATABASE_URL` and set `MB_ADMIN_EMAIL` and `MB_ADMIN_PASSWORD`. The backend applies the SQL migrations in `artifacts/mb-backend/db/migrations` during its production build. Never commit connection strings or passwords.
+Local development uses PostgreSQL. Copy `artifacts/mb-backend/.env.example` to `artifacts/mb-backend/.env.local`, set the password, then start Postgres with `pnpm --filter @workspace/mb-backend db:up` when Docker is installed, or `pnpm --filter @workspace/mb-backend db:local` for the project-local cluster. `pnpm dev` refuses to start when `DATABASE_URL` is missing or begins with `pglite:`. Automated tests set `pglite:memory` themselves and do not use `.env.local`. Production also refuses in-memory storage. Set `MB_ADMIN_EMAIL` and `MB_ADMIN_PASSWORD` on the host. The backend applies the SQL migrations in `artifacts/mb-backend/db/migrations` before dev, start, and the production build. Never commit connection strings or passwords. See `artifacts/mb-backend/docs/backup-recovery.md`.
 
 Optional integrations require their own provider credentials: `RESEND_API_KEY`, `MB_FROM_EMAIL`, and `MB_NOTIFY_EMAIL` enable email alerts; `STRIPE_SECRET_KEY` enables client card payments. Lead capture, the admin dashboard, and the planning portal work without these integrations.
 

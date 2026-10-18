@@ -1,19 +1,43 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { fillMergeTags, money, songKinds, totals, type AdminData, type PlannerData } from "@/lib/planner";
+import { useEffect, useMemo, useState } from "react";
+import { checklistProgress, countdownDays, fillMergeTags, money, songKinds, totals, type AdminData, type PlannerData } from "@/lib/planner";
+import {
+  emptyTimelineItem,
+  timelineKindLabels,
+  timelineKinds,
+  timelineWarnings,
+  type TimelineItem,
+  type TimelineKind,
+} from "@/lib/timeline";
 import { inLibrary, mostRequested, musicCategories, musicGenres, musicLibrary } from "@/lib/music-db";
 import { api, Empty, Field, fmtDate, newId, RowTools, Section, Select, SignaturePad, Text, useListOps } from "./ui";
+import { invitationHeadcount, InviteManager } from "./invite-host";
 
 export type Bundle = {
   code: string;
   guestCode: string;
-  guestPassword: string;
+  guestPassword?: string;
+  eventId?: string | null;
+  guestToken: string;
+  guestPath: string;
   data: PlannerData;
   admin: AdminData;
   requests: { id: string; created_at: string; guest_name: string; title: string; artist: string; note: string; status: string }[];
   messages: { id: string; created_at: string; sender: "client" | "mb"; body: string; read_at: string | null }[];
   paymentsOnline: boolean;
+  budget?: {
+    total: number;
+    paid: number;
+    balance: number;
+    clientBudget?: string;
+    source?: "ledger" | "planner";
+    schedule?: { id: string; label: string; amount: number; dueOn: string | null; status: string; method: string }[];
+    proposal?: { status: string; title: string } | null;
+    pendingKind?: string | null;
+  };
+  deadlines?: { id: string; title: string; dueOn: string | null; done: boolean }[];
+  progress?: { done: number; total: number; ratio: number };
 };
 
 type SetSection = <K extends keyof PlannerData>(section: K, value: PlannerData[K]) => void;
@@ -21,15 +45,38 @@ type Props = { bundle: Bundle; set: SetSection; reload: () => Promise<void>; go:
 
 // ---------- Overview ----------
 
-export function Overview({ bundle, go }: Props) {
+export function Overview({ bundle, go, set }: Props) {
   const { data, admin, messages, requests } = bundle;
   const t = totals(admin);
-  const days = data.details.eventDate ? Math.ceil((new Date(`${data.details.eventDate}T12:00:00`).getTime() - new Date().setHours(12, 0, 0, 0)) / 864e5) : null;
+  const shown = bundle.budget ?? t;
+  const days = countdownDays(data.details.eventDate);
+  const progress = bundle.progress ?? checklistProgress(data.checklist);
   const next = data.checklist.filter((c) => !c.done).slice(0, 4);
+  const upcoming = (bundle.deadlines ?? []).filter((task) => !task.done).slice(0, 4);
   const unread = messages.filter((m) => m.sender === "mb" && !m.read_at).length;
   const toSign = admin.documents.filter((d) => d.status === "sent").length;
   const pending = requests.filter((r) => r.status === "pending").length;
-  const nextPayment = admin.payments.find((p) => p.status === "due");
+  const ledgerDue = bundle.budget?.source === "ledger" ? bundle.budget.schedule?.find((payment) => payment.status === "due") : undefined;
+  const nextPayment = ledgerDue
+    ? { label: ledgerDue.label, amount: ledgerDue.amount, due: ledgerDue.dueOn ?? "" }
+    : admin.payments.find((payment) => payment.status === "due");
+  const expectedGuests = data.details.guestCount.trim();
+  const eventId = "id" in bundle && typeof (bundle as { id?: unknown }).id === "string" ? (bundle as { id: string }).id : "";
+  const [rsvp, setRsvp] = useState<{ attending: number; invited: number } | null>(null);
+  useEffect(() => {
+    const base = eventId ? `/api/admin/events/${eventId}/invites` : "/api/planner/invites";
+    let gone = false;
+    api<{ guests?: { rsvp: string; partySize: number; plusOnes: number }[] }>(base)
+      .then((view) => {
+        if (!gone) setRsvp(invitationHeadcount(view.guests ?? []));
+      })
+      .catch(() => {
+        if (!gone) setRsvp({ attending: 0, invited: 0 });
+      });
+    return () => {
+      gone = true;
+    };
+  }, [eventId]);
 
   return (
     <Section eyebrow="Overview" title={days === null ? "Set your date" : days > 0 ? `${days} days to go` : days === 0 ? "Today is the day" : "Thank you for celebrating with us"}>
@@ -37,12 +84,17 @@ export function Overview({ bundle, go }: Props) {
       <div className="pl-grid">
         <button className="pl-card pl-stat" onClick={() => go("Checklist")}>
           <div className="pl-k">Up next</div>
-          {next.length ? next.map((c) => <div className="pl-mini" key={c.id}>{c.text}{c.due && <small> · {c.due} out</small>}</div>) : <p>Everything is checked off.</p>}
+          {next.length || upcoming.length ? (
+            <>
+              {next.map((c) => <div className="pl-mini" key={c.id}>{c.text}{c.due && <small> · {c.due} out</small>}</div>)}
+              {upcoming.map((task) => <div className="pl-mini" key={task.id}>{task.title}{task.dueOn && <small> · {fmtDate(task.dueOn)}</small>}</div>)}
+            </>
+          ) : <p>Everything is checked off.</p>}
         </button>
         <button className="pl-card pl-stat" onClick={() => go("Payments")}>
           <div className="pl-k">Balance</div>
-          <h3>{money(t.balance)}</h3>
-          <small>{nextPayment ? `${nextPayment.label} ${money(nextPayment.amount)}${nextPayment.due ? ` due ${fmtDate(nextPayment.due)}` : ""}` : t.total ? "Paid in full" : "Invoice coming soon"}</small>
+          <h3>{money(shown.balance)}</h3>
+          <small>{money(shown.total)} invoice{nextPayment ? ` · ${nextPayment.label} ${money(nextPayment.amount)}${nextPayment.due ? ` due ${fmtDate(nextPayment.due)}` : ""}` : shown.total ? " · paid in full" : " · invoice coming soon"}</small>
         </button>
         <button className="pl-card pl-stat" onClick={() => go("Documents")}>
           <div className="pl-k">Documents</div>
@@ -66,14 +118,21 @@ export function Overview({ bundle, go }: Props) {
         </button>
         <button className="pl-card pl-stat" onClick={() => go("Guests")}>
           <div className="pl-k">RSVPs</div>
-          <h3>{data.guests.filter((g) => g.rsvp === "Yes").reduce((n, g) => n + g.party, 0)}</h3>
-          <small>attending of {data.guests.reduce((n, g) => n + g.party, 0)} invited</small>
+          <h3>{rsvp ? rsvp.attending : "…"}</h3>
+          <small>{rsvp ? `of ${rsvp.invited} invited` : "loading the guest list"}{expectedGuests ? ` · ${expectedGuests} expected` : ""}</small>
         </button>
         <button className="pl-card pl-stat" onClick={() => go("Timeline")}>
           <div className="pl-k">Timeline</div>
           <h3>{data.timeline.length}</h3>
           <small>moments planned</small>
         </button>
+      </div>
+      <div className="pl-card">
+        <div className="pl-k">Your budget</div>
+        <p className="pl-intro">{money(shown.total)} invoice · {money(shown.balance)} balance · {progress.done} of {progress.total} checklist items</p>
+        <Field label="Your number (optional)">
+          <Text value={data.details.clientBudget ?? ""} placeholder="Optional" onChange={(v) => set("details", { ...data.details, clientBudget: v.slice(0, 40) })} />
+        </Field>
       </div>
     </Section>
   );
@@ -284,7 +343,7 @@ export function Music({ bundle, set, reload }: Props) {
 
 export function GuestRequests({ bundle, reload }: Props) {
   const [busy, setBusy] = useState("");
-  const link = `${typeof window === "undefined" ? "" : window.location.origin}/planner/guest?code=${bundle.guestCode}&pw=${bundle.guestPassword}`;
+  const link = `${typeof window === "undefined" ? "" : window.location.origin}${bundle.guestPath}`;
   const act = async (id: string, body: object | null) => {
     setBusy(id);
     try {
@@ -301,9 +360,9 @@ export function GuestRequests({ bundle, reload }: Props) {
   return (
     <Section eyebrow="Guest requests" title="Let your guests pick songs" intro="Share this link. Guests add requests before the event, and songs you approve go straight into your music list for the DJ.">
       <div className="pl-card pl-share">
-        <div><div className="pl-k">Guest link (no password needed)</div><code>{link}</code></div>
+        <div><div className="pl-k">Guest link</div><code>{link}</code></div>
         <div><div className="pl-k">Guest code</div><code>{bundle.guestCode}</code></div>
-        <div><div className="pl-k">Password</div><code>{bundle.guestPassword}</code></div>
+        <p className="pl-intro">Share the link. Guests do not need a password — rotating the guest link in Access revokes the old one.</p>
         <button className="pl-btn" onClick={() => navigator.clipboard.writeText(share).then(() => alert("Copied. Paste it into a text, email, or your invitation."))}>Copy invite text</button>
         {!bundle.admin.guestRequestsOpen && <p className="pl-warn">Requests are currently closed. Message MB to reopen them.</p>}
       </div>
@@ -327,22 +386,132 @@ export function GuestRequests({ bundle, reload }: Props) {
 // ---------- Timeline ----------
 
 export function Timeline({ bundle, set }: Props) {
-  const ops = useListOps(bundle.data.timeline, (next) => set("timeline", next));
+  const items = (bundle.data.timeline || []) as TimelineItem[];
+  const ops = useListOps(items, (next) => set("timeline", next as PlannerData["timeline"]));
+  const warnings = useMemo(() => timelineWarnings(items), [items]);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const details = bundle.data.details;
+  const team = bundle.data.team || [];
+
+  const addPreset = (kind: TimelineKind, what: string) => {
+    ops.add(emptyTimelineItem(newId(), { kind, what, time: "", endTime: "", clientVisible: true }));
+  };
+
   return (
-    <Section eyebrow="Timeline" title="Run of show" intro="Edit times and moments. MB uses this as the night's running order." actions={<button className="pl-btn ghost" onClick={() => window.print()}>Print timeline</button>}>
-      <div className="pl-table">
-        {bundle.data.timeline.map((t) => (
-          <div className="pl-tr timeline" key={t.id}>
-            <input className="time" value={t.time} placeholder="7:00 PM" onChange={(e) => ops.update(t.id, { time: e.target.value })} />
-            <input value={t.what} placeholder="What happens" onChange={(e) => ops.update(t.id, { what: e.target.value })} />
+    <Section
+      eyebrow="Timeline"
+      title="Run of show"
+      intro="One shared schedule for this event — office, staff brief, and client portal all use these moments."
+      actions={<button type="button" className="pl-btn ghost" onClick={() => window.print()}>Print schedule</button>}
+    >
+      <div className="pl-tl-printhead print-only">
+        <h2>{details.clientNames || "Event"} — run of show</h2>
+        <p>{[details.eventType, details.eventDate, details.venueName].filter(Boolean).join(" · ")}</p>
+      </div>
+
+      {warnings.length ? (
+        <div className="pl-tl-warnings no-print" role="status">
+          {warnings.map((warning) => (
+            <p key={warning.id} className={warning.level === "warn" ? "is-warn" : ""}>{warning.message}</p>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="pl-tl-presets no-print" aria-label="Add common moments">
+        {([
+          ["setup", "Setup"],
+          ["soundcheck", "Soundcheck"],
+          ["guest_arrival", "Guest arrival"],
+          ["introductions", "Introductions"],
+          ["performance", "Performance"],
+          ["speech", "Speech"],
+          ["dinner", "Dinner"],
+          ["dancing", "Dancing"],
+          ["breakdown", "Breakdown"],
+        ] as const).map(([kind, label]) => (
+          <button key={kind} type="button" className="pl-btn sm ghost" onClick={() => addPreset(kind, label)}>{label}</button>
+        ))}
+      </div>
+
+      <div className="pl-table pl-tl-table">
+        <div className="pl-tr timeline pl-thead no-print">
+          <span />
+          <span>Start</span>
+          <span>End</span>
+          <span>Type</span>
+          <span>Activity</span>
+          <span>Responsible</span>
+          <span>Song</span>
+          <span>Client</span>
+          <span />
+        </div>
+        {items.map((t) => (
+          <div
+            className={`pl-tr timeline pl-tl-row${dragId === t.id ? " is-dragging" : ""}`}
+            key={t.id}
+            draggable
+            onDragStart={() => setDragId(t.id)}
+            onDragEnd={() => setDragId(null)}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={() => {
+              if (dragId) ops.reorder(dragId, t.id);
+              setDragId(null);
+            }}
+          >
+            <span className="pl-tl-handle no-print" title="Drag to reorder" aria-hidden="true">::</span>
+            <input className="time" value={t.time} placeholder="7:00 PM" aria-label="Start time" onChange={(e) => ops.update(t.id, { time: e.target.value })} />
+            <input className="time" value={t.endTime || ""} placeholder="End" aria-label="End time" onChange={(e) => ops.update(t.id, { endTime: e.target.value })} />
+            <select
+              className="no-print"
+              value={t.kind || "custom"}
+              aria-label="Moment type"
+              onChange={(e) => ops.update(t.id, { kind: e.target.value as TimelineKind })}
+            >
+              {timelineKinds.map((kind) => (
+                <option key={kind} value={kind}>{timelineKindLabels[kind]}</option>
+              ))}
+            </select>
+            <span className="print-only pl-tl-kind">{timelineKindLabels[(t.kind || "custom") as TimelineKind]}</span>
+            <div className="pl-tl-main">
+              <input value={t.what} placeholder="What happens" onChange={(e) => ops.update(t.id, { what: e.target.value })} />
+              <input
+                className="pl-tl-notes"
+                value={t.notes || ""}
+                placeholder="Notes / instructions"
+                onChange={(e) => ops.update(t.id, { notes: e.target.value })}
+              />
+            </div>
+            <div className="pl-tl-who">
+              <input value={t.who} placeholder="Staff or vendor" onChange={(e) => ops.update(t.id, { who: e.target.value })} list={`tl-who-${t.id}`} />
+              <datalist id={`tl-who-${t.id}`}>
+                {team.map((person) => (
+                  <option key={person.id} value={person.name}>{[person.role, person.company].filter(Boolean).join(" · ")}</option>
+                ))}
+              </datalist>
+            </div>
             <input value={t.song} placeholder="Song" onChange={(e) => ops.update(t.id, { song: e.target.value })} />
-            <input value={t.who} placeholder="Who's involved" onChange={(e) => ops.update(t.id, { who: e.target.value })} />
+            <label className="pl-tl-vis no-print" title="Show on client portal">
+              <input
+                type="checkbox"
+                checked={t.clientVisible !== false}
+                onChange={(e) => ops.update(t.id, { clientVisible: e.target.checked })}
+                aria-label="Visible to client"
+              />
+              <span>Client</span>
+            </label>
+            <span className="print-only">{t.clientVisible === false ? "Staff only" : ""}</span>
             <RowTools onUp={() => ops.move(t.id, -1)} onDown={() => ops.move(t.id, 1)} onRemove={() => ops.remove(t.id)} />
           </div>
         ))}
-        {!bundle.data.timeline.length && <Empty>No moments yet.</Empty>}
+        {!items.length && <Empty>No moments yet. Add a preset or a custom activity.</Empty>}
       </div>
-      <button className="pl-btn ghost no-print" onClick={() => ops.add({ id: newId(), time: "", what: "", song: "", who: "" })}>Add moment</button>
+      <button
+        type="button"
+        className="pl-btn ghost no-print"
+        onClick={() => ops.add(emptyTimelineItem(newId()))}
+      >
+        Add custom activity
+      </button>
     </Section>
   );
 }
@@ -378,55 +547,47 @@ export function Checklist({ bundle, set }: Props) {
 
 // ---------- Guest list & RSVP ----------
 
-export function Guests({ bundle, set }: Props) {
-  const list = bundle.data.guests;
-  const ops = useListOps(list, (next) => set("guests", next));
-  const [name, setName] = useState("");
-  const [party, setParty] = useState("1");
-  const [bulk, setBulk] = useState("");
-  const count = (r?: string) => list.filter((g) => !r || g.rsvp === r).reduce((n, g) => n + g.party, 0);
-  const exportCsv = () => {
-    const rows = [["Name", "Party size", "RSVP", "Table"], ...list.map((g) => [g.name, String(g.party), g.rsvp, g.table])];
-    const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    a.download = "guest-list.csv";
-    a.click();
-  };
-  return (
-    <Section eyebrow="Guests" title={`${count("Yes")} attending`} intro={`${count()} invited · ${count("Pending")} pending · ${count("No")} declined`} actions={<><button className="pl-btn ghost" onClick={exportCsv}>Export CSV</button><button className="pl-btn ghost" onClick={() => window.print()}>Print</button></>}>
-      <div className="pl-card">
-        {list.map((g) => (
-          <div className="pl-row" key={g.id}>
-            <input className="t plain" value={g.name} onChange={(e) => ops.update(g.id, { name: e.target.value })} />
-            <input className="due" type="number" min={1} value={g.party} aria-label="Party size" onChange={(e) => ops.update(g.id, { party: Math.max(1, Number(e.target.value) || 1) })} />
-            <input className="due" value={g.table} placeholder="Table" onChange={(e) => ops.update(g.id, { table: e.target.value })} />
-            <select value={g.rsvp} onChange={(e) => ops.update(g.id, { rsvp: e.target.value as typeof g.rsvp })}><option>Pending</option><option>Yes</option><option>No</option></select>
-            <RowTools onRemove={() => ops.remove(g.id)} />
-          </div>
-        ))}
-        {!list.length && <Empty>No guests yet.</Empty>}
-        <form className="pl-add no-print" onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; ops.add({ id: newId(), name: name.trim(), party: Math.max(1, Number(party) || 1), rsvp: "Pending", table: "" }); setName(""); setParty("1"); }}>
-          <input value={name} placeholder="Guest or household name" onChange={(e) => setName(e.target.value)} />
-          <input type="number" min={1} value={party} onChange={(e) => setParty(e.target.value)} aria-label="Party size" style={{ maxWidth: 90 }} />
-          <button className="pl-btn">Add guest</button>
-        </form>
-        <details className="no-print">
-          <summary className="pl-link">Paste many guests at once</summary>
-          <textarea rows={4} value={bulk} placeholder="One name per line" onChange={(e) => setBulk(e.target.value)} />
-          <button className="pl-btn ghost" onClick={() => { const names = bulk.split("\n").map((s) => s.trim()).filter(Boolean); set("guests", [...list, ...names.map((n) => ({ id: newId(), name: n, party: 1, rsvp: "Pending" as const, table: "" }))]); setBulk(""); }}>Add {bulk.split("\n").filter((s) => s.trim()).length} guests</button>
-        </details>
-      </div>
-    </Section>
-  );
+export function Guests({ bundle }: Props) {
+  const eventId = "id" in bundle && typeof (bundle as { id?: unknown }).id === "string" ? (bundle as { id: string }).id : "";
+  return <InviteManager eventId={eventId || undefined} expected={bundle.data.details.guestCount} />;
 }
 
 // ---------- Team & vendors ----------
 
+type DirectoryVendor = { id: string; name: string; category: string; contactName: string; email: string; phone: string };
+
 export function Team({ bundle, set }: Props) {
   const ops = useListOps(bundle.data.team, (next) => set("team", next));
+  const [directory, setDirectory] = useState<DirectoryVendor[]>([]);
+  useEffect(() => {
+    let gone = false;
+    const load = async (path: string) => {
+      const response = await fetch(path, { credentials: "same-origin" });
+      if (!response.ok) return [] as DirectoryVendor[];
+      const body = await response.json() as { vendors?: DirectoryVendor[] };
+      return Array.isArray(body.vendors) ? body.vendors : [];
+    };
+    load("/api/planner/vendors").then(async (vendors) => {
+      const next = vendors.length ? vendors : await load("/api/admin/vendors?safe=1");
+      if (!gone) setDirectory(next);
+    }).catch(() => {});
+    return () => { gone = true; };
+  }, []);
   return (
     <Section eyebrow="Team" title="Your vendors" intro="Photographer, florist, planner, venue: everyone MB should coordinate with on the day.">
+      {directory.length > 0 && (
+        <label className="pl-field no-print">
+          <span>Preferred partners</span>
+          <select value="" onChange={(event) => {
+            const vendor = directory.find((item) => item.id === event.target.value);
+            if (!vendor) return;
+            ops.add({ id: newId(), vendorId: vendor.id, name: vendor.contactName || vendor.name, role: vendor.category, company: vendor.name, phone: vendor.phone, email: vendor.email });
+          }}>
+            <option value="">Add from the directory</option>
+            {directory.map((vendor) => <option key={vendor.id} value={vendor.id}>{vendor.name}{vendor.category ? ` · ${vendor.category}` : ""}</option>)}
+          </select>
+        </label>
+      )}
       <div className="pl-table">
         {bundle.data.team.map((m) => (
           <div className="pl-tr" key={m.id}>
@@ -469,7 +630,20 @@ export function Documents({ bundle, reload }: Props) {
   };
   return (
     <Section eyebrow="Documents" title="Agreements & invoices" intro="Read, sign, and print your documents.">
-      {!docs.length && <Empty>MB hasn&apos;t shared any documents yet.</Empty>}
+      {bundle.budget?.pendingKind && (
+        <button className="pl-btn no-print" disabled={busy} onClick={async () => {
+          setBusy(true);
+          try {
+            await api("/api/planner/proposal", { body: {} });
+            await reload();
+          } catch (e) {
+            alert((e as Error).message);
+          } finally {
+            setBusy(false);
+          }
+        }}>{busy ? "Saving..." : bundle.budget.pendingKind === "change" ? "Accept change order" : "Accept quote"}</button>
+      )}
+      {!docs.length && !bundle.budget?.proposal && <Empty>MB hasn&apos;t shared any documents yet.</Empty>}
       <div className="pl-doclist no-print">
         {docs.map((d) => (
           <button key={d.id} className={`pl-card pl-docbtn ${open === d.id ? "on" : ""}`} onClick={() => setOpen(d.id)}>
@@ -507,6 +681,8 @@ export function Documents({ bundle, reload }: Props) {
 export function Payments({ bundle }: Props) {
   const { admin } = bundle;
   const t = totals(admin);
+  const shown = bundle.budget ?? { total: t.total, paid: t.paid, balance: t.balance };
+  const same = shown.total === t.total && shown.paid === t.paid && shown.balance === t.balance;
   const [busy, setBusy] = useState("");
   const status = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("payment");
   const pay = async (paymentId: string) => {
@@ -520,34 +696,40 @@ export function Payments({ bundle }: Props) {
     }
   };
   return (
-    <Section eyebrow="Payments" title={t.balance > 0 ? `${money(t.balance)} remaining` : t.total ? "Paid in full" : "Your invoice"} actions={<button className="pl-btn ghost" onClick={() => window.print()}>Print invoice</button>}>
+    <Section eyebrow="Payments" title={shown.balance > 0 ? `${money(shown.balance)} remaining` : shown.total ? "Paid in full" : "Your invoice"} actions={<button className="pl-btn ghost" onClick={() => window.print()}>Print invoice</button>}>
       {status === "success" && <p className="pl-ok">Payment received. Thank you!</p>}
       {status === "pending" && <p className="pl-warn">Your payment is processing. It will show here once confirmed.</p>}
       {status === "error" && <p className="pl-warn">We couldn&apos;t confirm that payment. If you were charged, message MB.</p>}
       <div className="pl-card">
         <div className="pl-k">{admin.packageName || "Package"}</div>
-        {admin.lineItems.length ? (
+        {admin.lineItems.length || shown.total ? (
           <table className="pl-invoice">
             <tbody>
               {admin.lineItems.map((i) => <tr key={i.id}><td>{i.description}{i.qty !== 1 && ` x${i.qty}`}</td><td>{money(i.qty * i.price)}</td></tr>)}
-              {admin.taxRate > 0 && <tr><td>Tax ({admin.taxRate}%)</td><td>{money(t.total - t.subtotal)}</td></tr>}
-              <tr className="total"><td>Total</td><td>{money(t.total)}</td></tr>
-              <tr><td>Paid</td><td>{money(t.paid)}</td></tr>
-              <tr className="total"><td>Balance</td><td>{money(t.balance)}</td></tr>
+              {same && admin.taxRate > 0 && <tr><td>Tax ({admin.taxRate}%)</td><td>{money(t.total - t.subtotal)}</td></tr>}
+              <tr className="total"><td>Total</td><td>{money(shown.total)}</td></tr>
+              <tr><td>Paid</td><td>{money(shown.paid)}</td></tr>
+              <tr className="total"><td>Balance</td><td>{money(shown.balance)}</td></tr>
             </tbody>
           </table>
         ) : <Empty>MB will add your package details here.</Empty>}
       </div>
       <h3 className="pl-h3">Payment schedule & history</h3>
       <div className="pl-card">
-        {admin.payments.length ? admin.payments.map((p) => (
+        {bundle.budget?.source === "ledger" && bundle.budget.schedule?.length ? bundle.budget.schedule.map((p) => (
+          <div className="pl-row" key={p.id}>
+            <span className="t"><strong>{p.label}</strong><br /><small>{p.status === "paid" ? `Paid${p.method ? ` · ${p.method}` : ""}` : p.dueOn ? `Due ${fmtDate(p.dueOn)}` : "Due"}</small></span>
+            <span>{money(p.amount)}</span>
+            {p.status === "paid" ? <span className="pl-tag ok">Paid</span> : bundle.paymentsOnline ? <button className="pl-btn sm" disabled={busy === p.id} onClick={() => pay(p.id)}>{busy === p.id ? "Opening..." : "Pay now"}</button> : <span className="pl-tag">Due</span>}
+          </div>
+        )) : admin.payments.length ? admin.payments.map((p) => (
           <div className="pl-row" key={p.id}>
             <span className="t"><strong>{p.label}</strong><br /><small>{p.status === "paid" ? `Paid ${fmtDate(p.paidAt)}${p.method ? ` · ${p.method}` : ""}` : p.due ? `Due ${fmtDate(p.due)}` : "Due"}</small></span>
             <span>{money(p.amount)}</span>
             {p.status === "paid" ? <span className="pl-tag ok">Paid</span> : bundle.paymentsOnline ? <button className="pl-btn sm" disabled={busy === p.id} onClick={() => pay(p.id)}>{busy === p.id ? "Opening..." : "Pay now"}</button> : <span className="pl-tag">Due</span>}
           </div>
         )) : <Empty>No payments scheduled yet.</Empty>}
-        {!bundle.paymentsOnline && admin.payments.some((p) => p.status === "due") && <p className="pl-intro">To pay, call (855) 627-6863 or message MB. Online card payments will appear here once enabled.</p>}
+        {bundle.budget?.source !== "ledger" && !bundle.paymentsOnline && admin.payments.some((p) => p.status === "due") && <p className="pl-intro">To pay, call (855) 627-6863 or message MB. Online card payments will appear here once enabled.</p>}
       </div>
     </Section>
   );

@@ -1,73 +1,71 @@
+import { assertStripeTestMode, ensureCheckoutPayment } from "@/lib/finance";
 import { env } from "@/lib/env";
-import { notifyMb } from "@/lib/notify";
-import { money } from "@/lib/planner";
 import { publicOrigin } from "@/lib/request-origin";
-import { assertWriteOrigin, db, fail, parseEvent, PlannerError, readJson, saveAdminWithAutoCheck, sessionEvent, type EventRow } from "@/lib/planner-server";
+import { assertBodyEvent, assertWriteOrigin, fail, PlannerError, readJson, sessionEvent } from "@/lib/planner-server";
 
-const stripeKey = () => (env as unknown as { STRIPE_SECRET_KEY?: string }).STRIPE_SECRET_KEY?.trim();
+const stripeKey = () => {
+  const key = (env.STRIPE_SECRET_KEY ?? "").trim();
+  assertStripeTestMode(key);
+  return key;
+};
 
-async function stripe(path: string, init?: { body: URLSearchParams }) {
+async function stripe(path: string, init: { body: URLSearchParams; idempotencyKey: string }) {
   const res = await fetch(`https://api.stripe.com/v1/${path}`, {
-    method: init ? "POST" : "GET",
-    headers: { Authorization: `Bearer ${stripeKey()}`, ...(init ? { "Content-Type": "application/x-www-form-urlencoded" } : {}) },
-    body: init?.body,
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${stripeKey()}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Idempotency-Key": init.idempotencyKey,
+    },
+    body: init.body,
   });
   const json = (await res.json()) as Record<string, unknown> & { error?: { message?: string } };
   if (!res.ok) throw new PlannerError(json.error?.message || "Payment provider error.", 502);
   return json;
 }
 
-// Starts a Stripe Checkout session for one scheduled payment.
+// Starts Checkout for one due ledger row. The browser return does not mark it paid.
 export async function POST(request: Request) {
   try {
     assertWriteOrigin(request);
-    if (!stripeKey()) throw new PlannerError("Online payments are not set up yet. Please call (855) 627-6863 to pay.", 503);
     const event = await sessionEvent(request, "client");
-    const { paymentId } = (await readJson(request)) as { paymentId?: string };
-    const payment = event.admin.payments.find((p) => p.id === paymentId);
-    if (!payment || payment.status !== "due" || payment.amount <= 0) throw new PlannerError("That payment is not due.", 404);
+    const raw = (await readJson(request)) as { paymentId?: string; eventId?: unknown; event?: unknown };
+    assertBodyEvent(event, raw);
+    if (!stripeKey()) throw new PlannerError("Online payments are not set up yet. Please call (855) 627-6863 to pay.", 503);
+    const paymentId = raw.paymentId ?? "";
+    const jsonPayment = event.admin.payments.find((payment) => payment.id === paymentId);
+    const eventId = event.row.event_id || event.row.id;
+    const payment = await ensureCheckoutPayment({
+      eventId,
+      paymentId,
+      label: jsonPayment?.label || "Payment",
+      amountCents: jsonPayment && jsonPayment.status === "due" ? Math.round(jsonPayment.amount * 100) : 0,
+      dueOn: jsonPayment?.due || null,
+    });
     const origin = publicOrigin(request);
     const form = new URLSearchParams({
       mode: "payment",
       "line_items[0][quantity]": "1",
       "line_items[0][price_data][currency]": "usd",
-      "line_items[0][price_data][unit_amount]": String(Math.round(payment.amount * 100)),
+      "line_items[0][price_data][unit_amount]": String(payment.amountCents),
       "line_items[0][price_data][product_data][name]": `MB Events - ${payment.label}`,
-      "metadata[event_id]": event.row.id,
+      "metadata[event_id]": eventId,
       "metadata[payment_id]": payment.id,
       success_url: `${origin}/api/planner/pay?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/planner?tab=Payments`,
     });
     if (event.data.details.email.includes("@")) form.set("customer_email", event.data.details.email);
-    const session = await stripe("checkout/sessions", { body: form });
+    const session = await stripe("checkout/sessions", { body: form, idempotencyKey: payment.id });
     return Response.json({ url: session.url });
   } catch (error) {
     return fail(error);
   }
 }
 
-// Stripe redirects here after checkout; verify with Stripe and record the payment.
+// The return URL only shows a pending state. A verified webhook is what marks the payment paid.
 export async function GET(request: Request) {
   const back = (state: string) => Response.redirect(new URL(`/planner?tab=Payments&payment=${state}`, publicOrigin(request)), 303);
-  try {
-    const sessionId = new URL(request.url).searchParams.get("session_id") ?? "";
-    if (!stripeKey() || !/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return back("error");
-    const session = (await stripe(`checkout/sessions/${sessionId}`)) as { payment_status?: string; metadata?: Record<string, string> };
-    if (session.payment_status !== "paid" || !session.metadata?.event_id) return back("pending");
-    const row = await db().prepare("SELECT * FROM planner_events WHERE id = ?").bind(session.metadata.event_id).first<EventRow>();
-    if (!row) return back("error");
-    const event = parseEvent(row);
-    if (!event.admin.payments.some((p) => p.ref === sessionId)) {
-      const payments = event.admin.payments.map((p) =>
-        p.id === session.metadata!.payment_id ? { ...p, status: "paid" as const, paidAt: new Date().toISOString().slice(0, 10), method: "Card (online)", ref: sessionId } : p,
-      );
-      await saveAdminWithAutoCheck(event, { payments });
-      const paid = payments.find((p) => p.ref === sessionId);
-      await notifyMb(publicOrigin(request), row.id, `Payment received from ${event.data.details.clientNames}`, [`${paid?.label}: ${money(paid?.amount ?? 0)} paid by card.`]);
-    }
-    return back("success");
-  } catch (error) {
-    console.error("Payment confirmation failed", error);
-    return back("error");
-  }
+  const sessionId = new URL(request.url).searchParams.get("session_id") ?? "";
+  if (!/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return back("error");
+  return back("pending");
 }

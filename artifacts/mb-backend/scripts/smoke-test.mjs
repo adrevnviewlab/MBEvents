@@ -2,7 +2,9 @@
 // Usage: BASE_URL=http://localhost:5173 MB_ADMIN_EMAIL=... MB_ADMIN_PASSWORD=... node scripts/smoke-test.mjs
 // Creates a temporary client portal and deletes it at the end. SKIP_LEAD=1 skips the lead-form check
 // (leads are not deleted). RATE_LIMIT=1 also checks login throttling (locks the tester's IP for 15 min).
+// SKIP_MARKETING=1 skips public marketing pages (use when BASE_URL is the Next app without the Vite site).
 const BASE = (process.env.BASE_URL || "http://localhost:5173").replace(/\/$/, "");
+const SKIP_MARKETING = process.env.SKIP_MARKETING === "1";
 const results = [];
 const ok = (name, pass, detail = "") => results.push({ name, pass, detail });
 
@@ -31,7 +33,10 @@ function jar() {
 }
 
 const anon = jar();
-for (const path of ["/", "/weddings", "/contact", "/planner", "/planner/guest", "/admin/login"]) {
+const publicPaths = SKIP_MARKETING
+  ? ["/planner", "/planner/guest", "/admin/login"]
+  : ["/", "/weddings", "/contact", "/planner", "/planner/guest", "/admin/login"];
+for (const path of publicPaths) {
   const r = await anon.req(path);
   ok(`GET ${path}`, r.status === 200, String(r.status));
 }
@@ -39,6 +44,7 @@ const adminPage = await anon.req("/admin/login");
 ok("security headers", adminPage.headers.get("x-frame-options") === "DENY" && !!adminPage.headers.get("strict-transport-security"), adminPage.headers.get("x-frame-options") ?? "missing");
 ok("admin page redirects to login", [307, 308].includes((await anon.req("/admin/planner")).status));
 ok("planner API requires session", (await anon.req("/api/planner")).status === 401);
+ok("admin session requires cookie", (await anon.req("/api/admin/session")).status === 401);
 ok("cross-origin write rejected", (await anon.req("/api/leads", { method: "POST", body: {}, headers: { origin: "https://evil.example" } })).status === 403);
 
 const admin = jar();
@@ -71,8 +77,10 @@ ok("client invalid section rejected", (await client.req("/api/planner", { method
 ok("client message", (await client.req("/api/planner/messages", { method: "POST", body: { body: "Smoke test message" } })).status === 201);
 ok("client cannot reach admin API", [401, 403].includes((await client.req("/api/admin/planner")).status));
 
+const adminBundle = (await admin.req(`/api/admin/planner/${id}`)).json;
 const guest = jar();
-ok("guest login", (await guest.req("/api/planner/guest/login", { method: "POST", body: { code: bundle?.guestCode, password: bundle?.guestPassword } })).status === 200);
+// Production requires the guest code + password (case-insensitive). Token login is covered below.
+ok("guest login", (await guest.req("/api/planner/guest/login", { method: "POST", body: { code: adminBundle?.guestCode, password: adminBundle?.guestPassword } })).status === 200);
 ok("guest request", (await guest.req("/api/planner/guest/requests", { method: "POST", body: { guestName: "Tester", title: "September", artist: "Earth, Wind & Fire" } })).status === 201);
 ok("guest cannot read client planner", (await guest.req("/api/planner")).status === 401);
 bundle = (await client.req("/api/planner")).json;
@@ -81,7 +89,6 @@ await client.req("/api/planner/requests", { method: "PATCH", body: { id: request
 bundle = (await client.req("/api/planner")).json;
 ok("approved guest song joins music list", !!bundle?.data?.songs?.some((s) => s.id === `guest-${requestId}`));
 
-const adminBundle = (await admin.req(`/api/admin/planner/${id}`)).json;
 const doc = { id: "doc1", title: "Agreement", body: "Agreement for {{client_name}} on {{event_date}}", status: "sent", createdAt: "", signedName: "", signature: "", signedAt: "", signedIp: "" };
 const payments = [{ id: "p1", label: "Deposit", amount: 500, due: "", status: "paid", paidAt: "2026-01-01", method: "Check", ref: "" }];
 ok("admin saves invoice + document", (await admin.req(`/api/admin/planner/${id}`, { method: "PATCH", body: { admin: { ...adminBundle.admin, lineItems: [{ id: "l1", description: "DJ", qty: 1, price: 2000 }], payments, documents: [doc] } } })).status === 200);
@@ -96,6 +103,27 @@ if (!process.env.SKIP_LEAD) {
   const lead = await anon.req("/api/leads", { method: "POST", body: { source: "contact", name: "Smoke Test Lead", email: "smoke@example.test", phone: "", eventType: "Other", priorities: [], contactMethod: "either", notes: "smoke", website: "" } });
   ok("lead form", [200, 201].includes(lead.status), lead.json?.error ?? "");
 }
+
+const guestToken = bundle?.guestToken;
+const guestPath = bundle?.guestPath || "";
+const clientGuestPassword = bundle?.guestPassword;
+ok(
+  "guest link hides the password",
+  typeof guestToken === "string"
+    && guestToken.length >= 32
+    && guestPath.startsWith("/planner/guest?t=")
+    && !guestPath.includes("pw=")
+    && (clientGuestPassword == null || clientGuestPassword === "")
+    && (adminBundle?.guestPassword == null || !guestPath.includes(String(adminBundle.guestPassword))),
+);
+const linkedGuest = jar();
+ok("guest token login", (await linkedGuest.req("/api/planner/guest/login", { method: "POST", body: { token: guestToken } })).status === 200);
+ok("guest token can read requests", (await linkedGuest.req("/api/planner/guest/requests")).status === 200);
+const resetGuest = await admin.req(`/api/admin/planner/${id}`, { method: "PATCH", body: { resetGuest: true } });
+ok("guest access can be revoked", resetGuest.status === 200 && !!resetGuest.json?.guestToken && resetGuest.json.guestToken !== guestToken);
+ok("revoked guest link rejected", (await jar().req("/api/planner/guest/login", { method: "POST", body: { token: guestToken } })).status === 401);
+ok("replacement guest link works", (await jar().req("/api/planner/guest/login", { method: "POST", body: { token: resetGuest.json?.guestToken } })).status === 200);
+ok("planner row kept after revoke", (await admin.req(`/api/admin/planner/${id}`)).json?.id === id);
 
 ok("delete test portal", (await admin.req(`/api/admin/planner/${id}`, { method: "DELETE" })).status === 200);
 ok("deleted portal session revoked", (await client.req("/api/planner")).status === 401);

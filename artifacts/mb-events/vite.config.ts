@@ -67,7 +67,15 @@ export default defineConfig({
     host: '0.0.0.0',
     allowedHosts: true,
     proxy: Object.fromEntries(
-      ['/api', '/admin', '/planner', '/_next'].map((route) => [route, { target: 'http://127.0.0.1:8081', changeOrigin: false }]),
+      ['/api', '/admin', '/planner', '/_next'].map((route) => [
+        route,
+        {
+          target: process.env.MB_API_PROXY || 'http://127.0.0.1:8081',
+          changeOrigin: false,
+          // The Next dev client does not hydrate until /_next/hmr connects.
+          ws: true,
+        },
+      ]),
     ),
     fs: {
       strict: true,

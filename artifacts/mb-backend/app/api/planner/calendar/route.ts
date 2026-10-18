@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import { fail, sessionEvent } from "@/lib/planner-server";
 
 function toIcsTime(date: string, time: string) {
@@ -19,12 +20,17 @@ export async function GET(request: Request) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d.eventDate)) return Response.json({ error: "Add your event date first." }, { status: 400 });
     const start = toIcsTime(d.eventDate, d.startTime);
     const end = toIcsTime(d.eventDate, d.endTime);
+    let tz = "America/New_York";
+    if (start && row.event_id && env.DB) {
+      const meta = await env.DB.prepare("SELECT timezone FROM events WHERE id = ?").bind(row.event_id).first<{ timezone: string }>();
+      if (meta?.timezone && /^[A-Za-z0-9_+\-/]{1,64}$/.test(meta.timezone)) tz = meta.timezone;
+    }
     const lines = [
       "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//MB Events//Planner//EN", "BEGIN:VEVENT",
       `UID:${row.id}@mbevents`,
       `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
-      start ? `DTSTART:${start}` : `DTSTART;VALUE=DATE:${d.eventDate.replace(/-/g, "")}`,
-      ...(start && end ? [`DTEND:${end}`] : []),
+      start ? `DTSTART;TZID=${tz}:${start}` : `DTSTART;VALUE=DATE:${d.eventDate.replace(/-/g, "")}`,
+      ...(start && end ? [`DTEND;TZID=${tz}:${end}`] : []),
       `SUMMARY:${esc(`${d.eventType || "Event"} - MB Events`)}`,
       `LOCATION:${esc([d.venueName, d.venueAddress].filter(Boolean).join(", "))}`,
       `DESCRIPTION:${esc(data.timeline.map((t) => `${t.time} ${t.what}`).join("\n"))}`,

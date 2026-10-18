@@ -1,5 +1,7 @@
+import { createInquiry } from "@/lib/crm";
 import { leadSchema } from "@/lib/lead";
-import { notifyMb } from "@/lib/notify";
+import { attachInquiryLinks } from "@/lib/places";
+import { notifyInquiryConfirmation, notifyInquiryOffice } from "@/lib/communications";
 import { limits } from "@/lib/rate-limit";
 import { publicOrigin } from "@/lib/request-origin";
 import { assertWriteOrigin, db, fail, PlannerError, readJson } from "@/lib/planner-server";
@@ -25,24 +27,31 @@ export async function POST(request: Request) {
       .first<{ id: string }>();
     if (existing) return Response.json({ ok: true, leadId: existing.id });
 
-    const id = crypto.randomUUID();
-    await db().batch([
-      db().prepare(
-        `INSERT INTO leads (id, source, name, email, phone, event_type, event_date, guest_count, location, venue_status, vibe, priorities, contact_method, campaign, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).bind(
-        id, input.source, input.name, input.email.toLowerCase(), input.phone, input.eventType, input.eventDate || null, input.guestCount || null,
-        input.location || null, input.venueStatus || null, input.vibe || null, JSON.stringify(input.priorities), input.contactMethod,
-        input.campaign || null, input.notes || null,
-      ),
-      db().prepare("INSERT INTO analytics_events (id, event_name, source, lead_id) VALUES (?, 'lead_created', ?, ?)").bind(crypto.randomUUID(), input.source, id),
-    ]);
-    await notifyMb(publicOrigin(request), "", `New ${input.source} inquiry from ${input.name}`, [
-      `${input.eventType}${input.eventDate ? ` on ${input.eventDate}` : ""}`,
-      [input.email, input.phone].filter(Boolean).join(" · "),
-      input.notes ?? "",
-    ], `/admin/leads/${id}`);
-    return Response.json({ ok: true, leadId: id }, { status: 201 });
+    const created = await createInquiry(input);
+    await attachInquiryLinks(created.id, input);
+    const origin = publicOrigin(request);
+    await notifyInquiryOffice({
+      leadId: created.id,
+      origin,
+      name: input.name,
+      source: input.source,
+      eventType: input.eventType,
+      eventDate: input.eventDate,
+      email: input.email,
+      phone: input.phone,
+      venueName: input.venueName,
+      services: input.services,
+      notes: input.notes,
+    }).catch(() => undefined);
+    await notifyInquiryConfirmation({
+      leadId: created.id,
+      email: input.email,
+      name: input.name,
+      eventType: input.eventType,
+      eventDate: input.eventDate,
+      origin,
+    }).catch(() => undefined);
+    return Response.json({ ok: true, leadId: created.id }, { status: 201 });
   } catch (error) {
     return fail(error);
   }

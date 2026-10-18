@@ -57,7 +57,10 @@ artifacts/mb-events/public/media/_preview_check/
 # MB backend build and local secrets
 **/.next/
 **/.env*
+!**/.env.example
 **/next-env.d.ts
 **/.pglite*/
 *.local.md
 *.local
+**/.data/
+**/backups/

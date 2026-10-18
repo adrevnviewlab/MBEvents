@@ -13,6 +13,8 @@ const noStore = [{ key: "Cache-Control", value: "no-store" }, { key: "X-Robots-T
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // localhost is allowed by default. 127.0.0.1 is not, so direct dev requests from that host never hydrate.
+  allowedDevOrigins: ["127.0.0.1"],
   serverExternalPackages: ["postgres", "@electric-sql/pglite"],
   async headers() {
     return [

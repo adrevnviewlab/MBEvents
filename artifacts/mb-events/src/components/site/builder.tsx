@@ -26,7 +26,7 @@ import {
   type ExperienceId,
   type LeadSource,
 } from '@/lib/content';
-import { Button, Field, Label } from '@/components/site/ui';
+import { Button, Field, HoneypotField, Label } from '@/components/site/ui';
 import { SpringChoice } from '@/components/site/motion';
 import { normalizeEventType, normalizeGuests, submitLead, type LeadInput } from '@/lib/leads';
 
@@ -177,6 +177,7 @@ type Draft = {
   email: string;
   reach: string[];
   message: string;
+  website: string;
 };
 
 function emptyDraft(seed?: Partial<Draft>): Draft {
@@ -196,6 +197,7 @@ function emptyDraft(seed?: Partial<Draft>): Draft {
     email: '',
     reach: ['call'],
     message: '',
+    website: '',
     ...seed,
   };
 }
@@ -450,6 +452,8 @@ export function BuildMyEventWizard({
   experienceId,
   initialServices,
   initialVenue,
+  initialVenueId,
+  initialVendorId,
   initialDate,
   initialNote,
   onClose,
@@ -459,6 +463,8 @@ export function BuildMyEventWizard({
   experienceId?: ExperienceId;
   initialServices?: string[];
   initialVenue?: string;
+  initialVenueId?: string;
+  initialVendorId?: string;
   initialDate?: string;
   initialDateUnknown?: boolean;
   initialNote?: string;
@@ -467,6 +473,14 @@ export function BuildMyEventWizard({
   const experience = experiences.find((e) => e.id === experienceId);
   const prefilled = !!(selectedType || initialDate || initialVenue || initialServices?.length || experienceId || initialNote);
   const reduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [sent, setSent] = useState(false);
@@ -606,10 +620,14 @@ export function BuildMyEventWizard({
         source: sourceMap[payload.source], name: payload.firstName, email: payload.email,
         phone: payload.phone, eventType: normalizeEventType(payload.eventType),
         eventDate: payload.eventDate, guestCount: normalizeGuests(payload.guestCount),
-        location: payload.venueName, venueStatus: form.whereMode === 'have' ? 'selected' : form.whereMode === 'need' ? 'need_venue' : 'deciding',
+        location: payload.venueName, venueName: form.venueName.trim() || null, services: form.includes,
+        venueId: initialVenueId && form.venueName.trim() === (initialVenue ?? '').trim() ? initialVenueId : null,
+        vendorId: initialVendorId || null,
+        venueStatus: form.whereMode === 'have' ? 'selected' : form.whereMode === 'need' ? 'need_venue' : 'deciding',
         priorities: [...new Set(payload.services.map((service) => priorityMap[service]).filter((priority): priority is NonNullable<LeadInput['priorities']>[number] => !!priority))],
         contactMethod: form.reach.includes('email') && !form.reach.includes('call') ? 'email' : form.reach.includes('call') && !form.reach.includes('email') ? 'phone' : 'either',
         notes: [payload.experienceId && `Experience: ${payload.experienceId}`, payload.message].filter(Boolean).join('\n').slice(0, 2000),
+        website: form.website,
       });
       localStorage.removeItem(DRAFT_KEY);
       setSent(true);
@@ -632,7 +650,7 @@ export function BuildMyEventWizard({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-end justify-center bg-[var(--mb-ink)]/90 p-0 backdrop-blur-sm sm:items-center sm:p-5"
+      className="fixed inset-0 z-[80] flex items-end justify-center bg-[var(--mb-ink)]/70 p-0 backdrop-blur-md sm:items-center sm:p-5"
       role="dialog"
       aria-modal="true"
       aria-label="Build my event"
@@ -641,14 +659,14 @@ export function BuildMyEventWizard({
         initial={reduceMotion ? false : { opacity: 0, y: 28, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ type: 'spring', stiffness: 260, damping: 28, mass: 1 }}
-        className="flex max-h-[96dvh] w-full max-w-6xl flex-col overflow-hidden border border-[var(--mb-line)] bg-[var(--mb-charcoal)] shadow-2xl lg:min-h-[min(88dvh,740px)] lg:flex-row"
+        className="mb-glass-strong flex max-h-[96dvh] w-full max-w-6xl flex-col overflow-hidden rounded-t-3xl border border-[var(--mb-glass-border)] shadow-2xl sm:rounded-3xl lg:min-h-[min(88dvh,740px)] lg:flex-row"
       >
         <aside className="relative h-[200px] shrink-0 sm:h-[248px] lg:h-auto lg:w-[40%]">
           <NightPreview form={form} sent={sent} />
         </aside>
 
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="sticky top-0 z-10 border-b border-[var(--mb-line)] bg-[var(--mb-charcoal)]/95 backdrop-blur-md">
+          <div className="sticky top-0 z-10 border-b border-[var(--mb-glass-border)] bg-[var(--mb-ink)]/35 backdrop-blur-xl">
             <div className="flex items-start justify-between gap-4 px-5 py-4 sm:px-7">
               <div>
                 <p className="font-mono text-[10px] uppercase tracking-[.22em] text-[var(--mb-champagne)]">
@@ -948,7 +966,8 @@ export function BuildMyEventWizard({
                     )}
 
                     {step === 'contact' && (
-                      <div className="space-y-5">
+                      <div className="relative space-y-5">
+                        <HoneypotField value={form.website} onChange={(website) => patch({ website })} />
                         <div className="grid gap-5 sm:grid-cols-2">
                           <Field label="First name" value={form.firstName} onChange={(firstName) => patch({ firstName })} required testId="input-first-name" />
                           <Field label="Phone" type="tel" value={form.phone} onChange={(phone) => patch({ phone })} required testId="input-phone" />
@@ -1001,7 +1020,7 @@ export function BuildMyEventWizard({
                 </AnimatePresence>
               </div>
 
-              <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 border-t border-[var(--mb-line)] bg-[var(--mb-charcoal)]/98 px-5 py-4 backdrop-blur-md sm:px-7">
+              <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 border-t border-[var(--mb-glass-border)] bg-[var(--mb-ink)]/45 px-5 py-4 backdrop-blur-xl sm:px-7">
                 {stepIndex > 0 ? (
                   <button
                     type="button"

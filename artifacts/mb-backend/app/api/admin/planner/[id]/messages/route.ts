@@ -8,7 +8,7 @@ type Params = { params: Promise<{ id: string }> };
 // MB reply; also marks the client's messages as read.
 export async function POST(request: Request, { params }: Params) {
   try {
-    await requireAdmin(request);
+    await requireAdmin(request, "events.write");
     const { id } = await params;
     if (!/^[0-9a-f-]{36}$/.test(id)) throw new PlannerError("Invalid event.");
     const { body } = (await readJson(request)) as { body?: unknown };

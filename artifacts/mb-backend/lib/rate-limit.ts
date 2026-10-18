@@ -28,11 +28,19 @@ export async function rateLimit(key: string, limit: number, windowSeconds: numbe
 // Shared limits, keyed by client IP.
 export const limits = {
   adminLogin: (r: Request) => rateLimit(`admin-login:${clientIp(r)}`, 10, 15 * 60),
+  adminMfa: (r: Request) => rateLimit(`admin-mfa:${clientIp(r)}`, 10, 15 * 60),
+  adminRecover: (r: Request) => rateLimit(`admin-recover:${clientIp(r)}`, 5, 15 * 60),
   clientLogin: (r: Request) => rateLimit(`client-login:${clientIp(r)}`, 10, 15 * 60),
   guestLogin: (r: Request) => rateLimit(`guest-login:${clientIp(r)}`, 20, 15 * 60),
   leadForm: (r: Request) => rateLimit(`lead:${clientIp(r)}`, 5, 10 * 60),
   guestRequest: (r: Request) => rateLimit(`guest-request:${clientIp(r)}`, 30, 60 * 60),
   message: (r: Request) => rateLimit(`message:${clientIp(r)}`, 30, 10 * 60),
+  unsubscribe: (r: Request) => rateLimit(`unsubscribe:${clientIp(r)}`, 10, 10 * 60),
+  inviteRead: (r: Request) => rateLimit(`invite-read:${clientIp(r)}`, 120, 10 * 60),
+  inviteRsvp: (r: Request) => rateLimit(`invite-rsvp:${clientIp(r)}`, 30, 10 * 60),
+  inviteCheckIn: (r: Request) => rateLimit(`invite-checkin:${clientIp(r)}`, 60, 10 * 60),
+  inviteMedia: (r: Request) => rateLimit(`invite-media:${clientIp(r)}`, 20, 60 * 60),
+  availabilityCheck: (r: Request) => rateLimit(`availability:${clientIp(r)}`, 60, 10 * 60),
 };
 
 // Housekeeping: drop expired sessions and stale counters. Called on successful logins.
@@ -42,6 +50,8 @@ export async function pruneExpired() {
   await db.batch([
     db.prepare("DELETE FROM admin_sessions WHERE expires_at < now()"),
     db.prepare("DELETE FROM planner_sessions WHERE expires_at < now()"),
+    db.prepare("DELETE FROM mfa_challenges WHERE expires_at < now()"),
+    db.prepare("DELETE FROM password_resets WHERE expires_at < now() OR used_at IS NOT NULL"),
     db.prepare("DELETE FROM rate_limits WHERE window_start < now() - interval '1 day'"),
   ]);
 }
