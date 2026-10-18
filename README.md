@@ -26,6 +26,13 @@ Run `pnpm run build` from the repository root to type-check and build both appli
 
 ## Deployment
 
-Deploy the backend project from `artifacts/mb-backend` as Next.js and the frontend project from the repository root as Vite. Set production `DATABASE_URL`, `MB_ADMIN_EMAIL`, `MB_ADMIN_PASSWORD`, and `MB_PUBLIC_ORIGIN` on the backend project. Set `MB_PUBLIC_ORIGIN` to the frontend's public HTTPS origin, without a trailing slash. The root `vercel.json` routes backend paths to `mbny-core.vercel.app` and serves the public site from `mbny.vercel.app`; update those destinations if project domains change. Deploy the backend before the frontend.
+Deploy under the Vercel team **adrev** (`adrevnview2`):
+
+| App | Vercel project | Production URL |
+|-----|----------------|----------------|
+| Public site (Vite) | `mb-events` | https://mb-events-rouge.vercel.app |
+| Backend / admin / planner (Next) | `mb-events-api-server` | https://mb-events-api-server.vercel.app |
+
+Backend root directory must be `artifacts/mb-backend`. Set production `DATABASE_URL`, `MB_ADMIN_EMAIL`, `MB_ADMIN_PASSWORD`, and `MB_PUBLIC_ORIGIN` on **mb-events-api-server**. Set `MB_PUBLIC_ORIGIN` to `https://mb-events-rouge.vercel.app` (no trailing slash). The root `vercel.json` rewrites `/api`, `/admin`, `/planner`, `/invite`, `/staff`, and `/_next` to `mb-events-api-server.vercel.app`. Deploy the backend before the frontend.
 
 Pricing shown in the public experience is an estimate until MB Events supplies approved rates. Venue imagery and descriptions should only be presented as verified MB productions when the source can be confirmed.

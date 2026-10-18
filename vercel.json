@@ -4,12 +4,16 @@
   "buildCommand": "pnpm --filter @workspace/mb-events run build",
   "outputDirectory": "artifacts/mb-events/dist/public",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://mbny-core.vercel.app/api/:path*" },
-    { "source": "/admin", "destination": "https://mbny-core.vercel.app/admin" },
-    { "source": "/admin/:path*", "destination": "https://mbny-core.vercel.app/admin/:path*" },
-    { "source": "/planner", "destination": "https://mbny-core.vercel.app/planner" },
-    { "source": "/planner/:path*", "destination": "https://mbny-core.vercel.app/planner/:path*" },
-    { "source": "/_next/:path*", "destination": "https://mbny-core.vercel.app/_next/:path*" },
+    { "source": "/api/:path*", "destination": "https://mb-events-api-server.vercel.app/api/:path*" },
+    { "source": "/admin", "destination": "https://mb-events-api-server.vercel.app/admin" },
+    { "source": "/admin/:path*", "destination": "https://mb-events-api-server.vercel.app/admin/:path*" },
+    { "source": "/planner", "destination": "https://mb-events-api-server.vercel.app/planner" },
+    { "source": "/planner/:path*", "destination": "https://mb-events-api-server.vercel.app/planner/:path*" },
+    { "source": "/invite", "destination": "https://mb-events-api-server.vercel.app/invite" },
+    { "source": "/invite/:path*", "destination": "https://mb-events-api-server.vercel.app/invite/:path*" },
+    { "source": "/staff", "destination": "https://mb-events-api-server.vercel.app/staff" },
+    { "source": "/staff/:path*", "destination": "https://mb-events-api-server.vercel.app/staff/:path*" },
+    { "source": "/_next/:path*", "destination": "https://mb-events-api-server.vercel.app/_next/:path*" },
     { "source": "/:path*", "destination": "/index.html" }
   ],
   "headers": [
